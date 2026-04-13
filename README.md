@@ -72,7 +72,7 @@ ILN is built natively on Stellar for a reason:
 
 |      Network    |                       Contract ID                          |
 |-----------------|------------------------------------------------------------|
-| Stellar Testnet | `CXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX` |
+| Stellar Testnet | `CD3TE3IAHM737P236XZL2OYU275ZKD6MN7YH7PYYAXYIGEH55OPEWYJC` |
 
 > Mainnet deployment coming after audit. Do not use with real funds until then.
 
