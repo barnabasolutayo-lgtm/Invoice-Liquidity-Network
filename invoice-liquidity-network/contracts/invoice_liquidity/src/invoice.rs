@@ -33,6 +33,17 @@ pub struct Invoice {
     pub amount_funded: i128,     // cumulative amount funded so far
 }
 
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct InvoiceParams {
+    pub freelancer: Address,
+    pub payer: Address,
+    pub amount: i128,
+    pub due_date: u64,
+    pub discount_rate: u32,
+    pub token: Address,
+}
+
 // ----------------------------------------------------------------
 // Storage key (UPDATED for multi-token registry)
 // ----------------------------------------------------------------
@@ -46,6 +57,9 @@ pub enum StorageKey {
     InvoiceFunders(u64), // List of funders for a partially funded invoice
     ApprovedToken(Address),
     TokenList,
+    Admin,
+    FeeRate,
+    MaxDiscountRate,
 }
 
 // ----------------------------------------------------------------

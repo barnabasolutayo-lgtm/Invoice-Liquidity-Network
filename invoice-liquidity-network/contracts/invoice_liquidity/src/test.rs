@@ -56,8 +56,10 @@ fn setup() -> TestEnv {
     let contract_id = env.register(InvoiceLiquidityContract, ());
     let contract = InvoiceLiquidityContractClient::new(&env, &contract_id);
 
+    let xlm_address = Address::generate(&env);
+    
     // Initialize with mock token address
-    contract.initialize(&usdc_address);
+    contract.initialize(&usdc_admin, &usdc_address, &xlm_address);
 
     // ---- Set ledger timestamp to a known baseline ----
     let mut ledger_info = env.ledger().get();
@@ -142,6 +144,97 @@ fn test_submit_multiple_invoices_increment_ids() {
 }
 
 // ----------------------------------------------------------------
+// submit_invoices_batch
+// ----------------------------------------------------------------
+
+#[test]
+fn test_submit_invoices_batch_happy_path() {
+    let t = setup();
+    let due_date = t.env.ledger().timestamp() + DUE_DATE_OFFSET;
+
+    let params = InvoiceParams {
+        freelancer: t.freelancer.clone(),
+        payer: t.payer.clone(),
+        amount: INVOICE_AMOUNT,
+        due_date,
+        discount_rate: DISCOUNT_RATE,
+        token: t.token.address.clone(),
+    };
+
+    let mut batch = Vec::new(&t.env);
+    batch.push_back(params.clone());
+    batch.push_back(params.clone());
+    batch.push_back(params.clone());
+
+    let ids = t.contract.submit_invoices_batch(&batch);
+
+    assert_eq!(ids.len(), 3);
+    assert_eq!(ids.get(0).unwrap(), 1);
+    assert_eq!(ids.get(1).unwrap(), 2);
+    assert_eq!(ids.get(2).unwrap(), 3);
+}
+
+#[test]
+fn test_submit_invoices_batch_rejects_over_limit() {
+    let t = setup();
+    let due_date = t.env.ledger().timestamp() + DUE_DATE_OFFSET;
+
+    let params = InvoiceParams {
+        freelancer: t.freelancer.clone(),
+        payer: t.payer.clone(),
+        amount: INVOICE_AMOUNT,
+        due_date,
+        discount_rate: DISCOUNT_RATE,
+        token: t.token.address.clone(),
+    };
+
+    let mut batch = Vec::new(&t.env);
+    for _ in 0..11 {
+        batch.push_back(params.clone());
+    }
+
+    let result = t.contract.try_submit_invoices_batch(&batch);
+
+    assert_eq!(result, Err(Ok(ContractError::BatchTooLarge)));
+}
+
+#[test]
+fn test_submit_invoices_batch_atomicity_fail() {
+    let t = setup();
+    let due_date = t.env.ledger().timestamp() + DUE_DATE_OFFSET;
+
+    let mut batch = Vec::new(&t.env);
+    
+    // Valid invoice
+    batch.push_back(InvoiceParams {
+        freelancer: t.freelancer.clone(),
+        payer: t.payer.clone(),
+        amount: INVOICE_AMOUNT,
+        due_date,
+        discount_rate: DISCOUNT_RATE,
+        token: t.token.address.clone(),
+    });
+
+    // Invalid invoice (amount = 0)
+    batch.push_back(InvoiceParams {
+        freelancer: t.freelancer.clone(),
+        payer: t.payer.clone(),
+        amount: 0,
+        due_date,
+        discount_rate: DISCOUNT_RATE,
+        token: t.token.address.clone(),
+    });
+
+    let result = t.contract.try_submit_invoices_batch(&batch);
+
+    assert_eq!(result, Err(Ok(ContractError::InvalidAmount)));
+    
+    // Verify no invoice was saved
+    assert_eq!(t.contract.get_invoice_count(), 0);
+}
+
+
+// ----------------------------------------------------------------
 // submit_invoice — validation errors
 // ----------------------------------------------------------------
 
@@ -213,6 +306,44 @@ fn test_submit_rejects_discount_rate_above_50_percent() {
     );
 
     assert_eq!(result, Err(Ok(ContractError::InvalidDiscountRate)));
+}
+
+// ----------------------------------------------------------------
+// transfer_invoice
+// ----------------------------------------------------------------
+
+#[test]
+fn test_transfer_invoice_updates_freelancer() {
+    let t = setup();
+    let id = submit_standard_invoice(&t);
+
+    let new_freelancer = Address::generate(&t.env);
+
+    t.contract.transfer_invoice(&id, &new_freelancer);
+
+    let invoice = t.contract.get_invoice(&id);
+    assert_eq!(invoice.freelancer, new_freelancer);
+}
+
+#[test]
+fn test_transfer_nonexistent_invoice_fails() {
+    let t = setup();
+    let new_freelancer = Address::generate(&t.env);
+
+    let result = t.contract.try_transfer_invoice(&999, &new_freelancer);
+    assert_eq!(result, Err(Ok(ContractError::InvoiceNotFound)));
+}
+
+#[test]
+fn test_transfer_funded_invoice_fails() {
+    let t = setup();
+    let id = submit_standard_invoice(&t);
+
+    t.contract.fund_invoice(&t.funder, &id, &INVOICE_AMOUNT);
+
+    let new_freelancer = Address::generate(&t.env);
+    let result = t.contract.try_transfer_invoice(&id, &new_freelancer);
+    assert_eq!(result, Err(Ok(ContractError::AlreadyFunded)));
 }
 
 // ----------------------------------------------------------------
