@@ -216,6 +216,44 @@ fn test_submit_rejects_discount_rate_above_50_percent() {
 }
 
 // ----------------------------------------------------------------
+// transfer_invoice
+// ----------------------------------------------------------------
+
+#[test]
+fn test_transfer_invoice_updates_freelancer() {
+    let t = setup();
+    let id = submit_standard_invoice(&t);
+
+    let new_freelancer = Address::generate(&t.env);
+
+    t.contract.transfer_invoice(&id, &new_freelancer);
+
+    let invoice = t.contract.get_invoice(&id);
+    assert_eq!(invoice.freelancer, new_freelancer);
+}
+
+#[test]
+fn test_transfer_nonexistent_invoice_fails() {
+    let t = setup();
+    let new_freelancer = Address::generate(&t.env);
+
+    let result = t.contract.try_transfer_invoice(&999, &new_freelancer);
+    assert_eq!(result, Err(Ok(ContractError::InvoiceNotFound)));
+}
+
+#[test]
+fn test_transfer_funded_invoice_fails() {
+    let t = setup();
+    let id = submit_standard_invoice(&t);
+
+    t.contract.fund_invoice(&t.funder, &id, &INVOICE_AMOUNT);
+
+    let new_freelancer = Address::generate(&t.env);
+    let result = t.contract.try_transfer_invoice(&id, &new_freelancer);
+    assert_eq!(result, Err(Ok(ContractError::AlreadyFunded)));
+}
+
+// ----------------------------------------------------------------
 // fund_invoice — happy path
 // ----------------------------------------------------------------
 

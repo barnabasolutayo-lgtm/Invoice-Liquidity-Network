@@ -179,6 +179,44 @@ impl InvoiceLiquidityContract {
     }
 
     // ------------------------------------------------------------
+    // transfer_invoice
+    // ------------------------------------------------------------
+    pub fn transfer_invoice(
+        env: Env,
+        invoice_id: u64,
+        new_freelancer: Address,
+    ) -> Result<(), ContractError> {
+        if !invoice_exists(&env, invoice_id) {
+            return Err(ContractError::InvoiceNotFound);
+        }
+
+        let mut invoice = load_invoice(&env, invoice_id);
+
+        invoice.freelancer.require_auth();
+
+        match invoice.status {
+            InvoiceStatus::Pending => {}
+            InvoiceStatus::PartiallyFunded | InvoiceStatus::Funded => {
+                return Err(ContractError::AlreadyFunded)
+            }
+            InvoiceStatus::Paid => return Err(ContractError::AlreadyPaid),
+            InvoiceStatus::Defaulted => return Err(ContractError::InvoiceDefaulted),
+        }
+
+        let old_freelancer = invoice.freelancer.clone();
+        invoice.freelancer = new_freelancer.clone();
+
+        save_invoice(&env, &invoice);
+
+        env.events().publish(
+            (soroban_sdk::Symbol::new(&env, "transferred"),),
+            (invoice_id, old_freelancer, new_freelancer),
+        );
+
+        Ok(())
+    }
+
+    // ------------------------------------------------------------
     // mark_paid (USES invoice.token)
     // ------------------------------------------------------------
     pub fn mark_paid(env: Env, invoice_id: u64) -> Result<(), ContractError> {
