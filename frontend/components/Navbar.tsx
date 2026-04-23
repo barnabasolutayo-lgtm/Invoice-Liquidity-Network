@@ -1,7 +1,8 @@
 "use client";
 
-import { useTheme } from "../hooks/useTheme";
+import Link from "next/link";
 import { useWallet } from "../context/WalletContext";
+import { useTheme } from "../hooks/useTheme";
 import { formatAddress } from "../utils/format";
 
 export default function Navbar() {
@@ -31,6 +32,18 @@ export default function Navbar() {
           >
             For LPs
           </a>
+          <Link
+            className="text-on-surface-variant hover:text-primary transition-colors duration-200 text-sm font-medium"
+            href="/governance"
+          >
+            Governance
+          </Link>
+          <Link
+            className="text-on-surface-variant hover:text-primary transition-colors duration-200 text-sm font-medium"
+            href="/payer"
+          >
+            Pay Invoices
+          </Link>
           <a
             className="text-on-surface-variant hover:text-primary transition-colors duration-200 text-sm font-medium"
             href="#"
