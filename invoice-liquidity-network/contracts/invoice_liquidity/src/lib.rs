@@ -655,6 +655,7 @@ fn notify_distribution_settlement(
 
 mod test;
 mod tests_arithmetic;
+mod tests_state_machine;
 mod tests_security;
 mod tests_protocol_fee;
 mod tests_distribution;
