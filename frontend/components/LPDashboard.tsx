@@ -276,7 +276,7 @@ export default function LPDashboard() {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div id="discovery-table" className="overflow-x-auto">
         <table className="w-full text-left">
           <thead className="bg-surface-container-low">
             <tr>
@@ -289,7 +289,7 @@ export default function LPDashboard() {
               <th className="px-6 py-4 text-[11px] font-bold uppercase text-on-surface-variant tracking-wider cursor-pointer group" onClick={() => toggleSort("amount")}>
                 Amount {sortKey === "amount" && (sortOrder === "asc" ? "↑" : "↓")}
               </th>
-              <th className="px-6 py-4 text-[11px] font-bold uppercase text-on-surface-variant tracking-wider cursor-pointer group" onClick={() => toggleSort("discount_rate")}>
+              <th id="risk-badge" className="px-6 py-4 text-[11px] font-bold uppercase text-on-surface-variant tracking-wider cursor-pointer group" onClick={() => toggleSort("discount_rate")}>
                 Discount {sortKey === "discount_rate" && (sortOrder === "asc" ? "↑" : "↓")}
               </th>
               <th className="px-6 py-4 text-[11px] font-bold uppercase text-on-surface-variant tracking-wider cursor-pointer group" onClick={() => toggleSort("due_date")}>
@@ -323,7 +323,7 @@ export default function LPDashboard() {
                 </td>
               </tr>
             ) : (
-              (activeTab === "discovery" ? discoveryInvoices : activeTab === "watchlist" ? watchlistInvoices : myFundedInvoices).map((invoice: any) => (
+              (activeTab === "discovery" ? discoveryInvoices : activeTab === "watchlist" ? watchlistInvoices : myFundedInvoices).map((invoice: any, index: number) => (
                 <tr key={invoice.id.toString()} className="hover:bg-surface-variant/10 transition-colors">
                   <td className="px-6 py-5 font-bold text-primary">#{invoice.id.toString()}</td>
                   <td className="px-6 py-5">
@@ -377,6 +377,7 @@ export default function LPDashboard() {
                   <td className="px-6 py-5 text-right">
                     {activeTab === "discovery" ? (
                       <button
+                        id={index === 0 ? "fund-button" : undefined}
                         onClick={() => handleFund(invoice)}
                         className="bg-primary text-surface-container-lowest text-xs px-4 py-2 rounded-lg font-bold hover:bg-primary/90 shadow-sm active:scale-95 transition-all"
                       >
