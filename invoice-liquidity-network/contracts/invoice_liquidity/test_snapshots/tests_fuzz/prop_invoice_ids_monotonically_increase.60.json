@@ -61,13 +61,13 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                 },
                 {
-                  "i128": "599913157"
+                  "i128": "597088152"
                 },
                 {
                   "u64": "1702592000"
                 },
                 {
-                  "u32": 2603
+                  "u32": 4613
                 },
                 {
                   "address": "CBEPDNVYXQGWB5YUBXKJWYJA7OXTZW5LFLNO5JRRGE6Z6C5OSUZPCCEL"
@@ -95,13 +95,13 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                 },
                 {
-                  "i128": "599913158"
+                  "i128": "597088153"
                 },
                 {
                   "u64": "1702592000"
                 },
                 {
-                  "u32": 2603
+                  "u32": 4613
                 },
                 {
                   "address": "CBEPDNVYXQGWB5YUBXKJWYJA7OXTZW5LFLNO5JRRGE6Z6C5OSUZPCCEL"
@@ -129,13 +129,13 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                 },
                 {
-                  "i128": "599913159"
+                  "i128": "597088154"
                 },
                 {
                   "u64": "1702592000"
                 },
                 {
-                  "u32": 2603
+                  "u32": 4613
                 },
                 {
                   "address": "CBEPDNVYXQGWB5YUBXKJWYJA7OXTZW5LFLNO5JRRGE6Z6C5OSUZPCCEL"
@@ -163,13 +163,13 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                 },
                 {
-                  "i128": "599913160"
+                  "i128": "597088155"
                 },
                 {
                   "u64": "1702592000"
                 },
                 {
-                  "u32": 2603
+                  "u32": 4613
                 },
                 {
                   "address": "CBEPDNVYXQGWB5YUBXKJWYJA7OXTZW5LFLNO5JRRGE6Z6C5OSUZPCCEL"
@@ -197,13 +197,13 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                 },
                 {
-                  "i128": "599913161"
+                  "i128": "597088156"
                 },
                 {
                   "u64": "1702592000"
                 },
                 {
-                  "u32": 2603
+                  "u32": 4613
                 },
                 {
                   "address": "CBEPDNVYXQGWB5YUBXKJWYJA7OXTZW5LFLNO5JRRGE6Z6C5OSUZPCCEL"
@@ -231,47 +231,13 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                 },
                 {
-                  "i128": "599913162"
+                  "i128": "597088157"
                 },
                 {
                   "u64": "1702592000"
                 },
                 {
-                  "u32": 2603
-                },
-                {
-                  "address": "CBEPDNVYXQGWB5YUBXKJWYJA7OXTZW5LFLNO5JRRGE6Z6C5OSUZPCCEL"
-                }
-              ]
-            }
-          },
-          "sub_invocations": []
-        }
-      ]
-    ],
-    [
-      [
-        "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
-        {
-          "function": {
-            "contract_fn": {
-              "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM",
-              "function_name": "submit_invoice",
-              "args": [
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
-                },
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
-                },
-                {
-                  "i128": "599913163"
-                },
-                {
-                  "u64": "1702592000"
-                },
-                {
-                  "u32": 2603
+                  "u32": 4613
                 },
                 {
                   "address": "CBEPDNVYXQGWB5YUBXKJWYJA7OXTZW5LFLNO5JRRGE6Z6C5OSUZPCCEL"
@@ -465,26 +431,6 @@
               "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
               "key": {
                 "ledger_key_nonce": {
-                  "nonce": "5806905060045992000"
-                }
-              },
-              "durability": "temporary",
-              "val": "void"
-            }
-          },
-          "ext": "v0"
-        },
-        "live_until": 6311999
-      },
-      {
-        "entry": {
-          "last_modified_ledger_seq": 0,
-          "data": {
-            "contract_data": {
-              "ext": "v0",
-              "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
-              "key": {
-                "ledger_key_nonce": {
                   "nonce": "6277191135259896685"
                 }
               },
@@ -595,7 +541,7 @@
                       "symbol": "amount"
                     },
                     "val": {
-                      "i128": "599913157"
+                      "i128": "597088152"
                     }
                   },
                   {
@@ -611,7 +557,7 @@
                       "symbol": "discount_rate"
                     },
                     "val": {
-                      "u32": 2603
+                      "u32": 4613
                     }
                   },
                   {
@@ -711,7 +657,7 @@
                       "symbol": "amount"
                     },
                     "val": {
-                      "i128": "599913158"
+                      "i128": "597088153"
                     }
                   },
                   {
@@ -727,7 +673,7 @@
                       "symbol": "discount_rate"
                     },
                     "val": {
-                      "u32": 2603
+                      "u32": 4613
                     }
                   },
                   {
@@ -827,7 +773,7 @@
                       "symbol": "amount"
                     },
                     "val": {
-                      "i128": "599913159"
+                      "i128": "597088154"
                     }
                   },
                   {
@@ -843,7 +789,7 @@
                       "symbol": "discount_rate"
                     },
                     "val": {
-                      "u32": 2603
+                      "u32": 4613
                     }
                   },
                   {
@@ -943,7 +889,7 @@
                       "symbol": "amount"
                     },
                     "val": {
-                      "i128": "599913160"
+                      "i128": "597088155"
                     }
                   },
                   {
@@ -959,7 +905,7 @@
                       "symbol": "discount_rate"
                     },
                     "val": {
-                      "u32": 2603
+                      "u32": 4613
                     }
                   },
                   {
@@ -1059,7 +1005,7 @@
                       "symbol": "amount"
                     },
                     "val": {
-                      "i128": "599913161"
+                      "i128": "597088156"
                     }
                   },
                   {
@@ -1075,7 +1021,7 @@
                       "symbol": "discount_rate"
                     },
                     "val": {
-                      "u32": 2603
+                      "u32": 4613
                     }
                   },
                   {
@@ -1175,7 +1121,7 @@
                       "symbol": "amount"
                     },
                     "val": {
-                      "i128": "599913162"
+                      "i128": "597088157"
                     }
                   },
                   {
@@ -1191,7 +1137,7 @@
                       "symbol": "discount_rate"
                     },
                     "val": {
-                      "u32": 2603
+                      "u32": 4613
                     }
                   },
                   {
@@ -1276,129 +1222,13 @@
               "key": {
                 "vec": [
                   {
-                    "symbol": "Invoice"
-                  },
-                  {
-                    "u64": "7"
-                  }
-                ]
-              },
-              "durability": "persistent",
-              "val": {
-                "map": [
-                  {
-                    "key": {
-                      "symbol": "amount"
-                    },
-                    "val": {
-                      "i128": "599913163"
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "amount_funded"
-                    },
-                    "val": {
-                      "i128": "0"
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "discount_rate"
-                    },
-                    "val": {
-                      "u32": 2603
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "due_date"
-                    },
-                    "val": {
-                      "u64": "1702592000"
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "freelancer"
-                    },
-                    "val": {
-                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "funded_at"
-                    },
-                    "val": "void"
-                  },
-                  {
-                    "key": {
-                      "symbol": "funder"
-                    },
-                    "val": "void"
-                  },
-                  {
-                    "key": {
-                      "symbol": "id"
-                    },
-                    "val": {
-                      "u64": "7"
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "payer"
-                    },
-                    "val": {
-                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "status"
-                    },
-                    "val": {
-                      "vec": [
-                        {
-                          "symbol": "Pending"
-                        }
-                      ]
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "token"
-                    },
-                    "val": {
-                      "address": "CBEPDNVYXQGWB5YUBXKJWYJA7OXTZW5LFLNO5JRRGE6Z6C5OSUZPCCEL"
-                    }
-                  }
-                ]
-              }
-            }
-          },
-          "ext": "v0"
-        },
-        "live_until": 4095
-      },
-      {
-        "entry": {
-          "last_modified_ledger_seq": 0,
-          "data": {
-            "contract_data": {
-              "ext": "v0",
-              "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM",
-              "key": {
-                "vec": [
-                  {
                     "symbol": "InvoiceCount"
                   }
                 ]
               },
               "durability": "persistent",
               "val": {
-                "u64": "7"
+                "u64": "6"
               }
             }
           },
@@ -1733,7 +1563,7 @@
               }
             ],
             "data": {
-              "u64": "7"
+              "u64": "6"
             }
           }
         }
