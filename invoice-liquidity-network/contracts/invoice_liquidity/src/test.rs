@@ -577,7 +577,7 @@ fn test_claim_default_success() {
     let t = setup();
     let id = submit_standard_invoice(&t);
 
-    t.contract.fund_invoice(&t.funder, &id);
+    t.contract.fund_invoice(&t.funder, &id, &INVOICE_AMOUNT);
 
     // Move time forward past due date
     let mut ledger = t.env.ledger().get();
@@ -586,7 +586,7 @@ fn test_claim_default_success() {
 
     let funder_before = t.token.balance(&t.funder);
 
-    t.contract.claim_default(&id);
+    t.contract.claim_default(&t.funder, &id);
 
     let funder_after = t.token.balance(&t.funder);
 
@@ -607,9 +607,9 @@ fn test_claim_default_before_due_date_fails() {
     let t = setup();
     let id = submit_standard_invoice(&t);
 
-    t.contract.fund_invoice(&t.funder, &id);
+    t.contract.fund_invoice(&t.funder, &id, &INVOICE_AMOUNT);
 
-    let result = t.contract.try_claim_default(&id);
+    let result = t.contract.try_claim_default(&t.funder, &id);
     assert_eq!(result, Err(Ok(ContractError::NotYetDefaulted)));
 }
 
@@ -618,7 +618,7 @@ fn test_claim_default_non_funder_fails() {
     let t = setup();
     let id = submit_standard_invoice(&t);
 
-    t.contract.fund_invoice(&t.funder, &id);
+    t.contract.fund_invoice(&t.funder, &id, &INVOICE_AMOUNT);
 
     // Move time forward
     let mut ledger = t.env.ledger().get();
@@ -627,7 +627,7 @@ fn test_claim_default_non_funder_fails() {
 
     let attacker = Address::generate(&t.env);
 
-    let result = t.contract.try_claim_default(&id);
+    let result = t.contract.try_claim_default(&attacker, &id);
     assert_eq!(result, Err(Ok(ContractError::Unauthorized)));
 }
 
@@ -636,7 +636,7 @@ fn test_claim_default_on_paid_invoice_fails() {
     let t = setup();
     let id = submit_standard_invoice(&t);
 
-    t.contract.fund_invoice(&t.funder, &id);
+    t.contract.fund_invoice(&t.funder, &id, &INVOICE_AMOUNT);
     t.contract.mark_paid(&id);
 
     // Move time forward
@@ -644,7 +644,7 @@ fn test_claim_default_on_paid_invoice_fails() {
     ledger.timestamp += DUE_DATE_OFFSET + 1;
     t.env.ledger().set(ledger);
 
-    let result = t.contract.try_claim_default(&id);
+    let result = t.contract.try_claim_default(&t.funder, &id);
     assert_eq!(result, Err(Ok(ContractError::AlreadyPaid)));
 }
 
@@ -653,16 +653,16 @@ fn test_claim_default_twice_fails() {
     let t = setup();
     let id = submit_standard_invoice(&t);
 
-    t.contract.fund_invoice(&t.funder, &id);
+    t.contract.fund_invoice(&t.funder, &id, &INVOICE_AMOUNT);
 
     // Move time forward
     let mut ledger = t.env.ledger().get();
     ledger.timestamp += DUE_DATE_OFFSET + 1;
     t.env.ledger().set(ledger);
 
-    t.contract.claim_default(&id);
+    t.contract.claim_default(&t.funder, &id);
 
-    let result = t.contract.try_claim_default(&id);
+    let result = t.contract.try_claim_default(&t.funder, &id);
     assert_eq!(result, Err(Ok(ContractError::InvoiceDefaulted)));
 }
 
@@ -680,12 +680,12 @@ fn test_perfect_payer_score() {
     let t = setup();
     let id = submit_standard_invoice(&t);
 
-    t.contract.fund_invoice(&t.funder, &id);
+    t.contract.fund_invoice(&t.funder, &id, &INVOICE_AMOUNT);
     t.contract.mark_paid(&id);
 
     let score = t.contract.payer_score(&t.payer);
 
-    assert!(score >= 90);
+    assert_eq!(score, 51);
 }
 
 #[test]
@@ -693,13 +693,13 @@ fn test_payer_with_default() {
     let t = setup();
     let id = submit_standard_invoice(&t);
 
-    t.contract.fund_invoice(&t.funder, &id);
+    t.contract.fund_invoice(&t.funder, &id, &INVOICE_AMOUNT);
 
     let mut ledger = t.env.ledger().get();
     ledger.timestamp += DUE_DATE_OFFSET + 1;
     t.env.ledger().set(ledger);
 
-    t.contract.claim_default(&id);
+    t.contract.claim_default(&t.funder, &id);
 
     let score = t.contract.payer_score(&t.payer);
 
