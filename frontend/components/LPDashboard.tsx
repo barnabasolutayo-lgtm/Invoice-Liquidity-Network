@@ -6,12 +6,8 @@ import { useToast } from "../context/ToastContext";
 import TokenSelector, { TokenAmount } from "./TokenSelector";
 import { useApprovedTokens } from "../hooks/useApprovedTokens";
 import {
-<<<<<<< HEAD
   buildApproveTokenTransaction,
-=======
-  buildApproveUsdcTransaction,
   claimDefault,
->>>>>>> 965240e (Frontend: Build the LP portfolio view, funded and settled invoices)
   getAllInvoices,
   getTokenAllowance,
   fundInvoice,
@@ -19,7 +15,6 @@ import {
   submitSignedTransaction,
 } from "../utils/soroban";
 import { formatAddress, formatDate, formatTokenAmount, calculateYield } from "../utils/format";
-import { formatUSDC, formatAddress, formatDate, calculateYield } from "../utils/format";
 import { useWatchlist } from "../hooks/useWatchlist";
 import { usePayerScores } from "../hooks/usePayerScores";
 import RiskBadge from "./RiskBadge";
@@ -42,7 +37,7 @@ export default function LPDashboard() {
   const [isCheckingAllowance, setIsCheckingAllowance] = useState(false);
   const [allowance, setAllowance] = useState<bigint | null>(null);
   const [fundingError, setFundingError] = useState<string | null>(null);
-  const [sortKey, setSortKey] = useState<keyof Invoice | "risk">("amount");
+  const [sortKey, setSortKey] = useState<keyof Invoice | "risk" | "yield">("amount");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [claimingInvoiceId, setClaimingInvoiceId] = useState<string | null>(null);
 
@@ -194,11 +189,6 @@ export default function LPDashboard() {
     }
   };
 
-<<<<<<< HEAD
-  const sortedInvoices = [...invoices].sort((a, b) => {
-    const aVal = a[sortKey] as string | number | bigint | undefined;
-    const bVal = b[sortKey] as string | number | bigint | undefined;
-=======
   const handleClaimDefault = async (invoice: Invoice) => {
     if (!address) {
       await connect();
@@ -227,13 +217,18 @@ export default function LPDashboard() {
       setClaimingInvoiceId(null);
     }
   };
-
->>>>>>> 965240e (Frontend: Build the LP portfolio view, funded and settled invoices)
   const sortedInvoices = [...invoices].sort((a: any, b: any) => {
     if (sortKey === "risk") {
       const ra = RISK_SORT_ORDER[payerRisks.get(a.payer) ?? "Unknown"];
       const rb = RISK_SORT_ORDER[payerRisks.get(b.payer) ?? "Unknown"];
       return sortOrder === "asc" ? ra - rb : rb - ra;
+    }
+    if (sortKey === "yield") {
+      const ay = calculateYield(a.amount, a.discount_rate);
+      const by = calculateYield(b.amount, b.discount_rate);
+      if (ay < by) return sortOrder === "asc" ? -1 : 1;
+      if (ay > by) return sortOrder === "asc" ? 1 : -1;
+      return 0;
     }
     const aVal = a[sortKey];
     const bVal = b[sortKey];
@@ -254,7 +249,7 @@ export default function LPDashboard() {
   // If we are in watchlist, we probably want to sort by watchAddedAt descending if the user hasn't toggled sorting.
   // We'll keep it simple and just use the same sortedInvoices logic.
 
-  const toggleSort = (key: keyof Invoice | "risk") => {
+  const toggleSort = (key: keyof Invoice | "risk" | "yield") => {
     if (sortKey === key) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
@@ -315,9 +310,6 @@ export default function LPDashboard() {
         </div>
       </div>
 
-<<<<<<< HEAD
-      <div id="discovery-table" className="overflow-x-auto">
-=======
       {activeTab === "my-funded" ? (
         <LPPortfolio
           invoices={myFundedInvoices}
@@ -326,8 +318,7 @@ export default function LPDashboard() {
           claimingInvoiceId={claimingInvoiceId}
         />
       ) : (
-      <div className="overflow-x-auto">
->>>>>>> 965240e (Frontend: Build the LP portfolio view, funded and settled invoices)
+      <div id="discovery-table" className="overflow-x-auto">
         <table className="w-full text-left">
           <thead className="bg-surface-container-low">
             <tr>
@@ -346,12 +337,14 @@ export default function LPDashboard() {
               <th className="px-6 py-4 text-[11px] font-bold uppercase text-on-surface-variant tracking-wider cursor-pointer group" onClick={() => toggleSort("due_date")}>
                 Due Date {sortKey === "due_date" && (sortOrder === "asc" ? "↑" : "↓")}
               </th>
-              <th className="px-6 py-4 text-[11px] font-bold uppercase text-on-surface-variant tracking-wider">
-                Est. Yield
+              <th className="px-6 py-4 text-[11px] font-bold uppercase text-on-surface-variant tracking-wider cursor-pointer group" onClick={() => toggleSort("yield")}>
+                Est. Yield {sortKey === "yield" && (sortOrder === "asc" ? "↑" : "↓")}
               </th>
               {activeTab === "watchlist" && (
                 <th className="px-6 py-4 text-[11px] font-bold uppercase text-on-surface-variant tracking-wider">
                   Added
+                </th>
+              )}
               {activeTab === "discovery" && (
                 <th className="px-6 py-4 text-[11px] font-bold uppercase text-on-surface-variant tracking-wider cursor-pointer" onClick={() => toggleSort("risk")}>
                   Risk {sortKey === "risk" && (sortOrder === "asc" ? "↑" : "↓")}
@@ -367,25 +360,14 @@ export default function LPDashboard() {
                   Loading invoices from Stellar...
                 </td>
               </tr>
-<<<<<<< HEAD
-            ) : (activeTab === "discovery" ? discoveryInvoices : activeTab === "watchlist" ? watchlistInvoices : myFundedInvoices).length === 0 ? (
+            ) : (activeTab === "discovery" ? discoveryInvoices : watchlistInvoices).length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-6 py-12 text-center text-on-surface-variant italic">
-                  No {activeTab === "discovery" ? "pending" : activeTab === "watchlist" ? "saved" : "funded"} invoices found.
+                  No {activeTab === "discovery" ? "pending" : "saved"} invoices found.
                 </td>
               </tr>
             ) : (
-              (activeTab === "discovery" ? discoveryInvoices : activeTab === "watchlist" ? watchlistInvoices : myFundedInvoices).map((invoice: any, index: number) => (
-=======
-            ) : discoveryInvoices.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-on-surface-variant italic">
-                  No pending invoices found.
-                </td>
-              </tr>
-            ) : (
-              discoveryInvoices.map((invoice) => (
->>>>>>> 965240e (Frontend: Build the LP portfolio view, funded and settled invoices)
+              (activeTab === "discovery" ? discoveryInvoices : watchlistInvoices).map((invoice: any, index: number) => (
                 <tr key={invoice.id.toString()} className="hover:bg-surface-variant/10 transition-colors">
                   <td className="px-6 py-5 font-bold text-primary">#{invoice.id.toString()}</td>
                   <td className="px-6 py-5">
@@ -411,8 +393,16 @@ export default function LPDashboard() {
                       {new Date(invoice.watchAddedAt).toLocaleDateString()}
                     </td>
                   )}
-                  <td className="px-6 py-5 text-right flex items-center justify-end gap-2">
-                    {(activeTab === "discovery" || activeTab === "watchlist") && (
+                  {activeTab === "discovery" && (
+                    <td className="px-6 py-5">
+                      <RiskBadge
+                        risk={payerRisks.get(invoice.payer) ?? "Unknown"}
+                        score={payerScores.get(invoice.payer) ?? null}
+                      />
+                    </td>
+                  )}
+                  <td className="px-6 py-5 text-right">
+                    <div className="inline-flex items-center gap-2">
                       <button
                         onClick={(e) => handleWatchlistToggle(invoice.id, e)}
                         className={`p-2 rounded-full transition-colors ${
@@ -426,19 +416,6 @@ export default function LPDashboard() {
                           bookmark
                         </span>
                       </button>
-                    )}
-                    {activeTab === "discovery" || (activeTab === "watchlist" && invoice.status === "Pending") ? (
-                  {activeTab === "discovery" && (
-                    <td className="px-6 py-5">
-                      <RiskBadge
-                        risk={payerRisks.get(invoice.payer) ?? "Unknown"}
-                        score={payerScores.get(invoice.payer) ?? null}
-                      />
-                    </td>
-                  )}
-                  <td className="px-6 py-5 text-right">
-<<<<<<< HEAD
-                    {activeTab === "discovery" ? (
                       <button
                         id={index === 0 ? "fund-button" : undefined}
                         onClick={() => handleFund(invoice)}
@@ -446,30 +423,7 @@ export default function LPDashboard() {
                       >
                         Fund
                       </button>
-                    ) : (
-                      <div className="flex flex-col items-end gap-1">
-                        <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${
-                          invoice.status === 'Funded' ? 'bg-blue-100 text-blue-700' : 
-                          invoice.status === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                        }`}>
-                          {invoice.status}
-                        </span>
-                        {activeTab === "watchlist" && invoice.status !== "Pending" && (
-                          <span className="text-[10px] bg-error-container text-on-error-container px-2 py-0.5 rounded flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[10px]">warning</span>
-                            Already funded
-                          </span>
-                        )}
-                      </div>
-                    )}
-=======
-                    <button
-                      onClick={() => handleFund(invoice)}
-                      className="bg-primary text-surface-container-lowest text-xs px-4 py-2 rounded-lg font-bold hover:bg-primary/90 shadow-sm active:scale-95 transition-all"
-                    >
-                      Fund
-                    </button>
->>>>>>> 965240e (Frontend: Build the LP portfolio view, funded and settled invoices)
+                    </div>
                   </td>
                 </tr>
               ))
