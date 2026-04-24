@@ -41,6 +41,12 @@ export default function Navbar() {
           </Link>
           <Link
             className="text-on-surface-variant hover:text-primary transition-colors duration-200 text-sm font-medium"
+            href="/dashboard"
+          >
+            Dashboard
+          </Link>
+          <Link
+            className="text-on-surface-variant hover:text-primary transition-colors duration-200 text-sm font-medium"
             href="/analytics"
           >
             Analytics
