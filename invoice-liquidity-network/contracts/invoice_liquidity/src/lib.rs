@@ -604,13 +604,4 @@ fn is_approved_token(env: &Env, token: &Address) -> bool {
 mod test;
 mod tests_multi_token;
 mod tests_security;
-        .unwrap_or(false)
-}
-
-// ----------------------------------------------------------------
-// TEST MODULES
-// ----------------------------------------------------------------
-
-mod test;
-mod tests_security;
 mod tests_protocol_fee;
