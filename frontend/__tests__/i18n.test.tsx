@@ -1,12 +1,17 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import i18n from "../../src/i18n";
+import { describe, it, expect, beforeEach } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import i18n from "../src/i18n";
 import { I18nextProvider } from "react-i18next";
 import Navbar from "../components/Navbar";
+import { WalletProvider } from "../context/WalletContext";
+import { ToastProvider } from "../context/ToastContext";
 
-constWrapper = ({ children }: { children: React.ReactNode }) => (
-  <I18nextProvider i18n={i18n}>{children}</I18nextProvider>
+const TestWrapper = ({ children }: { children: React.ReactNode }) => (
+  <I18nextProvider i18n={i18n}>
+    <ToastProvider>
+      <WalletProvider>{children}</WalletProvider>
+    </ToastProvider>
+  </I18nextProvider>
 );
 
 describe("i18n", () => {
@@ -92,21 +97,19 @@ describe("Navbar language toggle", () => {
   });
 
   it("shows language dropdown on click", async () => {
-    const user = userEvent.setup();
     render(<Navbar />, { wrapper: TestWrapper });
     const langButton = screen.getByRole("button", { name: /select language/i });
-    await user.click(langButton);
+    fireEvent.click(langButton);
     expect(screen.getByText("English")).toBeInTheDocument();
     expect(screen.getByText("Español")).toBeInTheDocument();
   });
 
   it("changes language when Spanish is selected", async () => {
-    const user = userEvent.setup();
     render(<Navbar />, { wrapper: TestWrapper });
     const langButton = screen.getByRole("button", { name: /select language/i });
-    await user.click(langButton);
+    fireEvent.click(langButton);
     const spanishButton = screen.getByText("Español");
-    await user.click(spanishButton);
+    fireEvent.click(spanishButton);
     expect(i18n.language).toBe("es");
   });
 
@@ -117,7 +120,6 @@ describe("Navbar language toggle", () => {
   });
 
   it("displays navigation in Spanish after switch", async () => {
-    const user = userEvent.setup();
     await i18n.changeLanguage("es");
     render(<Navbar />, { wrapper: TestWrapper });
     expect(screen.getByText("Cómo funciona")).toBeInTheDocument();

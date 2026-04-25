@@ -59,7 +59,8 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function FreelancerPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const getLocale = () => i18n.language === "es" ? "es-ES" : "en-US";
   const { address, isConnected, connect } = useWallet();
   const { addToast, updateToast } = useToast();
   const { signTx } = useWallet();
@@ -488,7 +489,7 @@ export default function FreelancerPage() {
                               {t("freelancer.submit.preview.due")}
                             </p>
                             <p className="font-bold mt-0.5">
-                              {new Date(form.dueDate).toLocaleDateString()}
+                              {new Date(form.dueDate).toLocaleDateString(getLocale())}
                             </p>
                           </div>
                         )}
