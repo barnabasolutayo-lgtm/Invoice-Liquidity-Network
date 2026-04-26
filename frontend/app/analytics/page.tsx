@@ -26,6 +26,7 @@ import FundingChart from "../../components/charts/FundingChart";
 import DefaultRateChart from "../../components/charts/DefaultRateChart";
 import { ExportButton } from "../../components/ExportButton";
 import AnimatedNumber from "../../components/AnimatedNumber";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 
 // ─── Metadata (static export — works for server components; kept here for
 //     documentation purposes since this is a "use client" file) ───────────────
@@ -351,6 +352,8 @@ function ErrorState({ message }: { message: string }) {
 }
 
 export default function AnalyticsPage() {
+  useDocumentTitle({ pageTitle: "Analytics" });
+
   const { data, loadState, errorMessage, lastUpdated, refresh } =
     useAnalyticsPolling();
 

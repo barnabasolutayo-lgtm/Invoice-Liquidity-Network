@@ -8,6 +8,7 @@ import { TESTNET_USDC_TOKEN_ID, NETWORK_NAME, CONTRACT_ID } from "../../../const
 import ActivityFeed from "../../../components/ActivityFeed";
 import { useWallet } from "../../../context/WalletContext";
 import { useToast } from "../../../context/ToastContext";
+import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
 import "../../../styles/print.css";
 
 interface InvoiceEvent {
@@ -406,6 +407,8 @@ export default function InvoiceStatusPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+
+  useDocumentTitle({ pageTitle: `Invoice #${id}` });
 
   // Parse & validate the invoice ID from the URL
   const invoiceId: bigint | null = (() => {

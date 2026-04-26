@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { ToastProvider } from "../context/ToastContext";
 import { WalletProvider } from "../context/WalletContext";
+import { NotificationProvider } from "../context/NotificationContext";
 import OnboardingFlow from "../components/onboarding/OnboardingFlow";
 import NetworkBanner from "../components/NetworkBanner";
 import CommandPalette from "../components/CommandPalette";
@@ -47,13 +48,15 @@ export default function RootLayout({
       >
         <ToastProvider>
           <WalletProvider>
-            <div className="min-h-screen flex flex-col">
-              <NetworkBanner />
-              <div className="flex-1">
-                {children}
+            <NotificationProvider>
+              <div className="min-h-screen flex flex-col">
+                <NetworkBanner />
+                <div className="flex-1">
+                  {children}
+                </div>
               </div>
-            </div>
-            <OnboardingFlow />
+              <OnboardingFlow />
+            </NotificationProvider>
           </WalletProvider>
         </ToastProvider>
       </body>

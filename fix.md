@@ -1,34 +1,39 @@
-Frontend: Add default rate trend chart to the analytics page
+Frontend: Add notification badge count to the document title
 
 Description
-The protocol's health is partly measured by its default rate if it rises sharply, something is wrong. This issue adds a default rate trend chart to the analytics page so the community can monitor protocol health over time.
+When users have ILN open in a background tab, they currently have no way to know if something important happened an invoice was funded, a default is claimable. Adding the unread notification count to the browser tab title lets users notice updates without switching to the tab.
 
 Requirements and context
 
-Chart type: line chart with two line "Default rate %" and "30-day moving average"
-X-axis: monthly resolution
-Y-axis: percentage (0–100%)
-Threshold line at 10% (dashed red) above this is considered concerning
-Hover tooltip: date, default rate for that month, moving average
-Summary cards above chart: "Current default rate: X%", "All-time default rate: Y%", "Trend: ↑/↓ vs last month"
-Data: Defaulted invoices / total Funded invoices per month
-Key files: src/pages/Analytics.tsx, new src/components/charts/DefaultRateChart.tsx
+Document title format:
+No notifications: "Invoice Liquidity Network"
+With notifications: "(3) Invoice Liquidity Network"
+On specific pages: "(3) My Dashboard · ILN"
+Update title whenever notification count changes
+Clear count from title when notification centre is opened (all marked as read)
+Page-specific titles for all major routes:
+/ - "ILN Turn unpaid invoices into instant liquidity"
+/dashboard - "My Dashboard · ILN"
+/lp - "Fund Invoices · ILN"
+/analytics - "Analytics · ILN"
+/governance - "Governance · ILN"
+/invoice/[id] - "Invoice #[id] · ILN"
+Implement as a useDocumentTitle custom hook
+Key files: new src/hooks/useDocumentTitle.ts, all page components
 Suggested execution
 
-Fork and branch: git checkout -b feat/default-rate-chart
-Create src/components/charts/DefaultRateChart.tsx
-Calculate 30-day moving average in a pure utility function
-Add threshold reference line using recharts ReferenceLine
-Fetch data from indexer GET /analytics/defaults?period=12m
-Write unit tests for moving average calculation
+Fork and branch: git checkout -b feat/document-title
+Create src/hooks/useDocumentTitle.ts
+Add hook to all major page components
+Subscribe to notification count from notification context
+Clear count on notification centre open
 Example commit message
-feat: add default rate trend chart with moving average to analytics
+feat: add unread notification count and page titles to document title
 
 Acceptance criteria
 
- Both lines render correctly
- Threshold reference line at 10% visible
- Moving average calculation is mathematically correct
- Summary cards show correct current and all-time values
- Trend arrow accurate vs previous month
- Responsive on mobile
+ Unread count appears in tab title correctly
+ Count clears when notification centre opened
+ All major routes have correct page-specific titles
+ Title updates correctly on route change
+ Hook is reusable across all page components
