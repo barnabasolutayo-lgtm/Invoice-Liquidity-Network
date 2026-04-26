@@ -1,5 +1,8 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, token::Client as TokenClient, vec, Address, Env, IntoVal, Symbol, Vec};
+use soroban_sdk::{
+    contract, contractimpl, contracttype, token::Client as TokenClient, vec, Address, Env, IntoVal,
+    Symbol, Vec,
+};
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
@@ -49,19 +52,25 @@ impl GovContract {
         if env.storage().instance().has(&StorageKey::IlnContract) {
             panic!("already initialized");
         }
-        env.storage().instance().set(&StorageKey::IlnContract, &iln_contract);
-        env.storage().instance().set(&StorageKey::GovToken, &gov_token);
-        env.storage().instance().set(&StorageKey::ProposalCount, &0_u64);
+        env.storage()
+            .instance()
+            .set(&StorageKey::IlnContract, &iln_contract);
+        env.storage()
+            .instance()
+            .set(&StorageKey::GovToken, &gov_token);
+        env.storage()
+            .instance()
+            .set(&StorageKey::ProposalCount, &0_u64);
     }
 
-    pub fn create_proposal(
-        env: Env,
-        creator: Address,
-        proposal_type: ProposalType,
-    ) -> u64 {
+    pub fn create_proposal(env: Env, creator: Address, proposal_type: ProposalType) -> u64 {
         creator.require_auth();
 
-        let count: u64 = env.storage().instance().get(&StorageKey::ProposalCount).unwrap_or(0);
+        let count: u64 = env
+            .storage()
+            .instance()
+            .get(&StorageKey::ProposalCount)
+            .unwrap_or(0);
         let id = count + 1;
 
         // 3-day voting window
@@ -77,8 +86,12 @@ impl GovContract {
             end_time,
         };
 
-        env.storage().persistent().set(&StorageKey::Proposal(id), &proposal);
-        env.storage().instance().set(&StorageKey::ProposalCount, &id);
+        env.storage()
+            .persistent()
+            .set(&StorageKey::Proposal(id), &proposal);
+        env.storage()
+            .instance()
+            .set(&StorageKey::ProposalCount, &id);
 
         id
     }
@@ -86,8 +99,12 @@ impl GovContract {
     pub fn vote(env: Env, voter: Address, proposal_id: u64, support: bool) {
         voter.require_auth();
 
-        let mut proposal: Proposal = env.storage().persistent().get(&StorageKey::Proposal(proposal_id)).expect("not found");
-        
+        let mut proposal: Proposal = env
+            .storage()
+            .persistent()
+            .get(&StorageKey::Proposal(proposal_id))
+            .expect("not found");
+
         let now = env.ledger().timestamp();
         if now >= proposal.end_time {
             panic!("voting ended");
@@ -115,11 +132,17 @@ impl GovContract {
         }
 
         env.storage().persistent().set(&voted_key, &true);
-        env.storage().persistent().set(&StorageKey::Proposal(proposal_id), &proposal);
+        env.storage()
+            .persistent()
+            .set(&StorageKey::Proposal(proposal_id), &proposal);
     }
 
     pub fn execute_proposal(env: Env, proposal_id: u64, total_supply: i128) {
-        let mut proposal: Proposal = env.storage().persistent().get(&StorageKey::Proposal(proposal_id)).expect("not found");
+        let mut proposal: Proposal = env
+            .storage()
+            .persistent()
+            .get(&StorageKey::Proposal(proposal_id))
+            .expect("not found");
         let now = env.ledger().timestamp();
 
         if now < proposal.end_time {
@@ -134,7 +157,9 @@ impl GovContract {
 
         if total_votes < quorum {
             proposal.status = ProposalStatus::Failed;
-            env.storage().persistent().set(&StorageKey::Proposal(proposal_id), &proposal);
+            env.storage()
+                .persistent()
+                .set(&StorageKey::Proposal(proposal_id), &proposal);
             panic!("quorum not reached");
         }
 
@@ -142,16 +167,26 @@ impl GovContract {
             proposal.status = ProposalStatus::Passed;
         } else {
             proposal.status = ProposalStatus::Failed;
-            env.storage().persistent().set(&StorageKey::Proposal(proposal_id), &proposal);
+            env.storage()
+                .persistent()
+                .set(&StorageKey::Proposal(proposal_id), &proposal);
             panic!("proposal rejected");
         }
 
-        let iln_contract: Address = env.storage().instance().get(&StorageKey::IlnContract).unwrap();
-        
+        let iln_contract: Address = env
+            .storage()
+            .instance()
+            .get(&StorageKey::IlnContract)
+            .unwrap();
+
         match proposal.proposal_type.clone() {
             ProposalType::UpdateFeeRate(rate) => {
                 let args: Vec<soroban_sdk::Val> = vec![&env, rate.into_val(&env)];
-                env.invoke_contract::<()>(&iln_contract, &Symbol::new(&env, "update_fee_rate"), args);
+                env.invoke_contract::<()>(
+                    &iln_contract,
+                    &Symbol::new(&env, "update_fee_rate"),
+                    args,
+                );
             }
             ProposalType::AddToken(token) => {
                 let args: Vec<soroban_sdk::Val> = vec![&env, token.into_val(&env)];
@@ -163,15 +198,24 @@ impl GovContract {
             }
             ProposalType::UpdateMaxDiscountRate(rate) => {
                 let args: Vec<soroban_sdk::Val> = vec![&env, rate.into_val(&env)];
-                env.invoke_contract::<()>(&iln_contract, &Symbol::new(&env, "update_max_discount"), args);
+                env.invoke_contract::<()>(
+                    &iln_contract,
+                    &Symbol::new(&env, "update_max_discount"),
+                    args,
+                );
             }
         }
 
         proposal.status = ProposalStatus::Executed;
-        env.storage().persistent().set(&StorageKey::Proposal(proposal_id), &proposal);
+        env.storage()
+            .persistent()
+            .set(&StorageKey::Proposal(proposal_id), &proposal);
     }
 
     pub fn get_proposal(env: Env, proposal_id: u64) -> Proposal {
-        env.storage().persistent().get(&StorageKey::Proposal(proposal_id)).expect("not found")
+        env.storage()
+            .persistent()
+            .get(&StorageKey::Proposal(proposal_id))
+            .expect("not found")
     }
 }

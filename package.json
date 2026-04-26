@@ -2,7 +2,9 @@
   "name": "invoice-liquidity-network",
   "private": true,
   "scripts": {
+    "build:cli": "npm --prefix cli run build",
     "test": "npm --prefix sdk test",
+    "test:cli": "npm --prefix cli test",
     "test:e2e": "vitest run tests/e2e"
   }
 }

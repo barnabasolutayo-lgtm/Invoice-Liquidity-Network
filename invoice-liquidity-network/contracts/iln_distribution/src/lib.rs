@@ -1,8 +1,6 @@
 #![no_std]
 
-use soroban_sdk::{
-    contract, contractimpl, contracttype, token::StellarAssetClient, Address, Env,
-};
+use soroban_sdk::{contract, contractimpl, contracttype, token::StellarAssetClient, Address, Env};
 
 const HALF_TOKEN: i128 = 5_000_000;
 const HUNDRED_USDC_STROOPS: i128 = 1_000_000_000;
@@ -28,9 +26,15 @@ impl IlnDistribution {
             panic!("already initialized");
         }
 
-        env.storage().instance().set(&StorageKey::Initialized, &true);
-        env.storage().instance().set(&StorageKey::IlnContract, &iln_contract);
-        env.storage().instance().set(&StorageKey::GovToken, &gov_token);
+        env.storage()
+            .instance()
+            .set(&StorageKey::Initialized, &true);
+        env.storage()
+            .instance()
+            .set(&StorageKey::IlnContract, &iln_contract);
+        env.storage()
+            .instance()
+            .set(&StorageKey::GovToken, &gov_token);
     }
 
     pub fn accrue_lp(env: Env, lp: Address, amount_usdc_equivalent: i128) {
@@ -47,12 +51,7 @@ impl IlnDistribution {
             .set(&key, &(current + amount_usdc_equivalent));
     }
 
-    pub fn accrue_settlement(
-        env: Env,
-        freelancer: Address,
-        payer: Address,
-        settled_on_time: bool,
-    ) {
+    pub fn accrue_settlement(env: Env, freelancer: Address, payer: Address, settled_on_time: bool) {
         Self::require_iln_invoker(&env);
 
         let freelancer_key = StorageKey::FreelancerSettled(freelancer);
@@ -125,7 +124,11 @@ impl IlnDistribution {
     }
 
     fn require_iln_invoker(env: &Env) {
-        let iln_contract: Address = env.storage().instance().get(&StorageKey::IlnContract).unwrap();
+        let iln_contract: Address = env
+            .storage()
+            .instance()
+            .get(&StorageKey::IlnContract)
+            .unwrap();
         iln_contract.require_auth();
     }
 }
@@ -133,11 +136,7 @@ impl IlnDistribution {
 #[cfg(test)]
 mod test {
     use super::*;
-    use soroban_sdk::{
-        testutils::Address as _,
-        token::Client as TokenClient,
-        Address,
-    };
+    use soroban_sdk::{testutils::Address as _, token::Client as TokenClient, Address};
 
     #[contract]
     pub struct MockIln;

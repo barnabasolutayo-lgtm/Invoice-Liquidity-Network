@@ -39,7 +39,13 @@ fn calc_discount(amount: i128, rate: u32) -> (i128, i128) {
 /// * `rate`             – discount rate in basis points (bps)
 /// * `expected_payout`  – expected freelancer_payout
 /// * `expected_discount`– expected discount_amount
-fn check_discount(label: &str, amount: i128, rate: u32, expected_payout: i128, expected_discount: i128) {
+fn check_discount(
+    label: &str,
+    amount: i128,
+    rate: u32,
+    expected_payout: i128,
+    expected_discount: i128,
+) {
     let (discount, payout) = calc_discount(amount, rate);
 
     assert_eq!(
@@ -236,24 +242,80 @@ fn test_invariant_payout_plus_discount_eq_amount_across_all_cases() {
 
     let cases = [
         // --- boundary / minimum values ---
-        Case { label: "1 stroop @ 1 bps",    amount: 1,                   rate: 1    },
-        Case { label: "1 stroop @ 5000 bps", amount: 1,                   rate: 5_000 },
+        Case {
+            label: "1 stroop @ 1 bps",
+            amount: 1,
+            rate: 1,
+        },
+        Case {
+            label: "1 stroop @ 5000 bps",
+            amount: 1,
+            rate: 5_000,
+        },
         // --- typical USDC invoice amounts ---
-        Case { label: "1 USDC @ 1 bps",      amount: 10_000_000,          rate: 1    },
-        Case { label: "1 USDC @ 300 bps",    amount: 10_000_000,          rate: 300  },
-        Case { label: "1 USDC @ 5000 bps",   amount: 10_000_000,          rate: 5_000 },
-        Case { label: "100 USDC @ 300 bps",  amount: 1_000_000_000,       rate: 300  },
-        Case { label: "100 USDC @ 5000 bps", amount: 1_000_000_000,       rate: 5_000 },
+        Case {
+            label: "1 USDC @ 1 bps",
+            amount: 10_000_000,
+            rate: 1,
+        },
+        Case {
+            label: "1 USDC @ 300 bps",
+            amount: 10_000_000,
+            rate: 300,
+        },
+        Case {
+            label: "1 USDC @ 5000 bps",
+            amount: 10_000_000,
+            rate: 5_000,
+        },
+        Case {
+            label: "100 USDC @ 300 bps",
+            amount: 1_000_000_000,
+            rate: 300,
+        },
+        Case {
+            label: "100 USDC @ 5000 bps",
+            amount: 1_000_000_000,
+            rate: 5_000,
+        },
         // --- large realistic invoices ---
-        Case { label: "1M USDC @ 1 bps",     amount: 10_000_000_000_000,  rate: 1    },
-        Case { label: "1M USDC @ 300 bps",   amount: 10_000_000_000_000,  rate: 300  },
-        Case { label: "1M USDC @ 5000 bps",  amount: 10_000_000_000_000,  rate: 5_000 },
+        Case {
+            label: "1M USDC @ 1 bps",
+            amount: 10_000_000_000_000,
+            rate: 1,
+        },
+        Case {
+            label: "1M USDC @ 300 bps",
+            amount: 10_000_000_000_000,
+            rate: 300,
+        },
+        Case {
+            label: "1M USDC @ 5000 bps",
+            amount: 10_000_000_000_000,
+            rate: 5_000,
+        },
         // --- uneven division amounts ---
-        Case { label: "1_333 stroops @ 300 bps",    amount: 1_333,        rate: 300  },
-        Case { label: "999_999 stroops @ 777 bps",  amount: 999_999,      rate: 777  },
-        Case { label: "12_345_678 @ 1234 bps",      amount: 12_345_678,   rate: 1_234 },
+        Case {
+            label: "1_333 stroops @ 300 bps",
+            amount: 1_333,
+            rate: 300,
+        },
+        Case {
+            label: "999_999 stroops @ 777 bps",
+            amount: 999_999,
+            rate: 777,
+        },
+        Case {
+            label: "12_345_678 @ 1234 bps",
+            amount: 12_345_678,
+            rate: 1_234,
+        },
         // --- overflow scenario (checked_mul fallback) ---
-        Case { label: "i128::MAX @ 5000 bps (overflow)", amount: i128::MAX, rate: 5_000 },
+        Case {
+            label: "i128::MAX @ 5000 bps (overflow)",
+            amount: i128::MAX,
+            rate: 5_000,
+        },
     ];
 
     for case in &cases {

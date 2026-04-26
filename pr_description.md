@@ -1,8 +1,14 @@
 # PR Description: Multi-Feature Enhancement Release
 
-This PR resolves four key backend issues focused on flexibility, decentralization, and efficiency.
+This PR resolves five key backend issues focused on flexibility, decentralization, and efficiency.
 
 ### Key Changes
+
+#### 0. Pending Invoice Updates (#13)
+- Added `update_invoice()` to `lib.rs`.
+- Allows the original freelancer to update `amount`, `due_date`, and `discount_rate` while the invoice is still `Pending`.
+- Re-runs invoice validation on every update and emits an `updated` event.
+- Closes #13
 
 #### 1. Invoice Transfer Capability (#15)
 - Added `transfer_invoice()` to `lib.rs`.
@@ -34,5 +40,5 @@ This PR resolves four key backend issues focused on flexibility, decentralizatio
 - **Frontend**: Formatting utilities verified for correct decimal handling.
 
 ### Branch Info
-- **Branch**: `feat/all-issues-resolution`
+- **Branch**: `feat/10-11-13-26-invoice-lifecycle-and-cli`
 - **Commits**: Modularly committed for each feature area.

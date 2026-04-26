@@ -1,15 +1,19 @@
 #![no_std]
 
 mod errors;
+mod events;
 mod invoice;
 mod tests_regression;
 
 use soroban_sdk::{
-    contract, contractimpl, symbol_short, vec, Address, Env, IntoVal, Symbol,
-    token::Client as TokenClient, Vec,
+    contract, contractimpl, token::Client as TokenClient, vec, Address, Env, IntoVal, Symbol, Vec,
 };
 
 use errors::ContractError;
+use events::{
+    InvoiceCancelled, InvoiceDefaulted, InvoiceFunded, InvoicePaid, InvoiceSubmitted,
+    InvoiceTransferred, InvoiceUpdated,
+};
 use invoice::{
     get_invoice_funders, get_payer_score, invoice_exists, load_invoice, next_invoice_id,
     save_invoice, save_invoice_funders, set_payer_score, Invoice, InvoiceParams, InvoiceStatus,
@@ -136,23 +140,7 @@ impl InvoiceLiquidityContract {
     ) -> Result<u64, ContractError> {
         freelancer.require_auth();
 
-        if amount <= 0 {
-            return Err(ContractError::InvalidAmount);
-        }
-
-        let max_rate: u32 = env
-            .storage()
-            .instance()
-            .get(&StorageKey::MaxDiscountRate)
-            .unwrap_or(5000);
-        if discount_rate == 0 || discount_rate > max_rate {
-            return Err(ContractError::InvalidDiscountRate);
-        }
-
-        let now = env.ledger().timestamp();
-        if due_date <= now {
-            return Err(ContractError::InvalidDueDate);
-        }
+        validate_invoice_terms(&env, amount, due_date, discount_rate)?;
 
         // token validation
         if !is_approved_token(&env, &token) {
@@ -177,10 +165,80 @@ impl InvoiceLiquidityContract {
 
         save_invoice(&env, &invoice);
 
-        #[allow(deprecated)]
-        env.events().publish((symbol_short!("submitted"),), id);
+        env.events().publish_event(&InvoiceSubmitted {
+            invoice_id: invoice.id,
+            freelancer: invoice.freelancer.clone(),
+            payer: invoice.payer.clone(),
+            token: invoice.token.clone(),
+            amount: invoice.amount,
+            due_date: invoice.due_date,
+            discount_rate: invoice.discount_rate,
+            status: invoice.status.clone(),
+        });
 
         Ok(id)
+    }
+
+    // ------------------------------------------------------------
+    // update_invoice
+    // ------------------------------------------------------------
+    pub fn update_invoice(
+        env: Env,
+        freelancer: Address,
+        invoice_id: u64,
+        amount: i128,
+        due_date: u64,
+        discount_rate: u32,
+    ) -> Result<(), ContractError> {
+        if !invoice_exists(&env, invoice_id) {
+            return Err(ContractError::InvoiceNotFound);
+        }
+
+        let mut invoice = load_invoice(&env, invoice_id);
+        freelancer.require_auth();
+
+        if invoice.freelancer != freelancer {
+            return Err(ContractError::Unauthorized);
+        }
+
+        if invoice.status == InvoiceStatus::Pending && env.ledger().timestamp() >= invoice.due_date
+        {
+            invoice.status = InvoiceStatus::Expired;
+            save_invoice(&env, &invoice);
+            return Err(ContractError::InvoiceExpired);
+        }
+
+        match invoice.status {
+            InvoiceStatus::Pending => {}
+            InvoiceStatus::PartiallyFunded | InvoiceStatus::Funded => {
+                return Err(ContractError::AlreadyFunded)
+            }
+            InvoiceStatus::Paid => return Err(ContractError::AlreadyPaid),
+            InvoiceStatus::Defaulted => return Err(ContractError::InvoiceDefaulted),
+            InvoiceStatus::Expired => return Err(ContractError::InvoiceExpired),
+            InvoiceStatus::Cancelled => return Err(ContractError::InvoiceNotFound),
+        }
+
+        validate_invoice_terms(&env, amount, due_date, discount_rate)?;
+
+        invoice.amount = amount;
+        invoice.due_date = due_date;
+        invoice.discount_rate = discount_rate;
+
+        save_invoice(&env, &invoice);
+
+        env.events().publish_event(&InvoiceUpdated {
+            invoice_id: invoice.id,
+            freelancer: invoice.freelancer.clone(),
+            payer: invoice.payer.clone(),
+            token: invoice.token.clone(),
+            amount: invoice.amount,
+            due_date: invoice.due_date,
+            discount_rate: invoice.discount_rate,
+            status: invoice.status.clone(),
+        });
+
+        Ok(())
     }
 
     // ------------------------------------------------------------
@@ -202,23 +260,7 @@ impl InvoiceLiquidityContract {
                 authenticated_freelancers.push_back(params.freelancer.clone());
             }
 
-            if params.amount <= 0 {
-                return Err(ContractError::InvalidAmount);
-            }
-
-            let max_rate: u32 = env
-                .storage()
-                .instance()
-                .get(&StorageKey::MaxDiscountRate)
-                .unwrap_or(5000);
-            if params.discount_rate == 0 || params.discount_rate > max_rate {
-                return Err(ContractError::InvalidDiscountRate);
-            }
-
-            let now = env.ledger().timestamp();
-            if params.due_date <= now {
-                return Err(ContractError::InvalidDueDate);
-            }
+            validate_invoice_terms(&env, params.amount, params.due_date, params.discount_rate)?;
 
             if !is_approved_token(&env, &params.token) {
                 return Err(ContractError::Unauthorized);
@@ -242,8 +284,16 @@ impl InvoiceLiquidityContract {
 
             save_invoice(&env, &invoice);
 
-            #[allow(deprecated)]
-            env.events().publish((symbol_short!("submitted"),), id);
+            env.events().publish_event(&InvoiceSubmitted {
+                invoice_id: invoice.id,
+                freelancer: invoice.freelancer.clone(),
+                payer: invoice.payer.clone(),
+                token: invoice.token.clone(),
+                amount: invoice.amount,
+                due_date: invoice.due_date,
+                discount_rate: invoice.discount_rate,
+                status: invoice.status.clone(),
+            });
 
             ids.push_back(id);
         }
@@ -268,9 +318,17 @@ impl InvoiceLiquidityContract {
 
         let mut invoice = load_invoice(&env, invoice_id);
 
+        if invoice.status == InvoiceStatus::Pending && env.ledger().timestamp() >= invoice.due_date
+        {
+            invoice.status = InvoiceStatus::Expired;
+            save_invoice(&env, &invoice);
+            return Err(ContractError::InvoiceExpired);
+        }
+
         match invoice.status {
             InvoiceStatus::Paid => return Err(ContractError::AlreadyPaid),
             InvoiceStatus::Defaulted => return Err(ContractError::InvoiceDefaulted),
+            InvoiceStatus::Expired => return Err(ContractError::InvoiceExpired),
             InvoiceStatus::Funded => return Err(ContractError::AlreadyFunded),
             InvoiceStatus::Pending | InvoiceStatus::PartiallyFunded => {} // all good
             InvoiceStatus::Cancelled => return Err(ContractError::InvoiceNotFound),
@@ -326,9 +384,20 @@ impl InvoiceLiquidityContract {
 
         notify_distribution_funding(&env, &funder, fund_amount);
 
-        #[allow(deprecated)]
-        env.events()
-            .publish((symbol_short!("funded"),), (invoice_id, funder));
+        env.events().publish_event(&InvoiceFunded {
+            invoice_id: invoice.id,
+            funder: funder.clone(),
+            freelancer: invoice.freelancer.clone(),
+            payer: invoice.payer.clone(),
+            token: invoice.token.clone(),
+            fund_amount,
+            amount_funded: invoice.amount_funded,
+            invoice_amount: invoice.amount,
+            due_date: invoice.due_date,
+            discount_rate: invoice.discount_rate,
+            funded_at: invoice.funded_at,
+            status: invoice.status.clone(),
+        });
 
         Ok(())
     }
@@ -356,6 +425,7 @@ impl InvoiceLiquidityContract {
             }
             InvoiceStatus::Paid => return Err(ContractError::AlreadyPaid),
             InvoiceStatus::Defaulted => return Err(ContractError::InvoiceDefaulted),
+            InvoiceStatus::Expired => return Err(ContractError::InvoiceExpired),
             InvoiceStatus::Cancelled => return Err(ContractError::InvoiceNotFound),
         }
 
@@ -364,10 +434,12 @@ impl InvoiceLiquidityContract {
 
         save_invoice(&env, &invoice);
 
-        env.events().publish(
-            (soroban_sdk::Symbol::new(&env, "transferred"),),
-            (invoice_id, old_freelancer, new_freelancer),
-        );
+        env.events().publish_event(&InvoiceTransferred {
+            invoice_id,
+            old_freelancer,
+            new_freelancer,
+            status: invoice.status.clone(),
+        });
 
         Ok(())
     }
@@ -375,10 +447,7 @@ impl InvoiceLiquidityContract {
     // ------------------------------------------------------------
     // cancel_invoice
     // ------------------------------------------------------------
-    pub fn cancel_invoice(
-        env: Env,
-        invoice_id: u64,
-    ) -> Result<(), ContractError> {
+    pub fn cancel_invoice(env: Env, invoice_id: u64) -> Result<(), ContractError> {
         if !invoice_exists(&env, invoice_id) {
             return Err(ContractError::InvoiceNotFound);
         }
@@ -394,6 +463,7 @@ impl InvoiceLiquidityContract {
             }
             InvoiceStatus::Paid => return Err(ContractError::AlreadyPaid),
             InvoiceStatus::Defaulted => return Err(ContractError::InvoiceDefaulted),
+            InvoiceStatus::Expired => return Err(ContractError::InvoiceExpired),
             InvoiceStatus::Cancelled => return Err(ContractError::InvoiceNotFound),
         }
 
@@ -401,12 +471,43 @@ impl InvoiceLiquidityContract {
 
         save_invoice(&env, &invoice);
 
-        env.events().publish(
-            (soroban_sdk::Symbol::new(&env, "cancelled"),),
-            (invoice_id,),
-        );
+        env.events().publish_event(&InvoiceCancelled {
+            invoice_id,
+            freelancer: invoice.freelancer.clone(),
+            status: invoice.status.clone(),
+        });
 
         Ok(())
+    }
+
+    // ------------------------------------------------------------
+    // expire_invoice
+    // ------------------------------------------------------------
+    pub fn expire_invoice(env: Env, invoice_id: u64) -> Result<(), ContractError> {
+        if !invoice_exists(&env, invoice_id) {
+            return Err(ContractError::InvoiceNotFound);
+        }
+
+        let mut invoice = load_invoice(&env, invoice_id);
+
+        if env.ledger().timestamp() < invoice.due_date {
+            return Err(ContractError::NotYetDefaulted);
+        }
+
+        match invoice.status {
+            InvoiceStatus::Pending => {
+                invoice.status = InvoiceStatus::Expired;
+                save_invoice(&env, &invoice);
+                Ok(())
+            }
+            InvoiceStatus::PartiallyFunded | InvoiceStatus::Funded => {
+                Err(ContractError::AlreadyFunded)
+            }
+            InvoiceStatus::Paid => Err(ContractError::AlreadyPaid),
+            InvoiceStatus::Defaulted => Err(ContractError::InvoiceDefaulted),
+            InvoiceStatus::Expired => Err(ContractError::InvoiceExpired),
+            InvoiceStatus::Cancelled => Err(ContractError::InvoiceNotFound),
+        }
     }
 
     // ------------------------------------------------------------
@@ -427,6 +528,7 @@ impl InvoiceLiquidityContract {
             }
             InvoiceStatus::Paid => return Err(ContractError::AlreadyPaid),
             InvoiceStatus::Defaulted => return Err(ContractError::InvoiceDefaulted),
+            InvoiceStatus::Expired => return Err(ContractError::InvoiceExpired),
             InvoiceStatus::Funded => {}
             InvoiceStatus::Cancelled => return Err(ContractError::InvoiceNotFound),
         }
@@ -440,7 +542,8 @@ impl InvoiceLiquidityContract {
         token.transfer(&invoice.payer, &contract_address, &invoice.amount);
 
         // Calculate the discount amount that was kept in escrow
-        let discount_amount = invoice.amount
+        let discount_amount = invoice
+            .amount
             .checked_mul(discount_rate_as_i128(invoice.discount_rate))
             .unwrap_or(0)
             / 10_000;
@@ -448,7 +551,11 @@ impl InvoiceLiquidityContract {
         // Contract releases the full amount + the escrowed discount to the LP
         // LP receives: their escrowed discount + the payer's settlement
         // Total = invoice.amount + discount_amount
-        token.transfer(&contract_address, &funder, &(invoice.amount + discount_amount));
+        token.transfer(
+            &contract_address,
+            &funder,
+            &(invoice.amount + discount_amount),
+        );
 
         // ---- Update invoice ----
         invoice.status = InvoiceStatus::Paid;
@@ -462,9 +569,18 @@ impl InvoiceLiquidityContract {
         let current_score = get_payer_score(&env, &invoice.payer);
         set_payer_score(&env, &invoice.payer, current_score + 1);
 
-        // Emit event
-        #[allow(deprecated)]
-        env.events().publish((symbol_short!("paid"),), invoice_id);
+        env.events().publish_event(&InvoicePaid {
+            invoice_id: invoice.id,
+            payer: invoice.payer.clone(),
+            funder,
+            freelancer: invoice.freelancer.clone(),
+            token: invoice.token.clone(),
+            amount: invoice.amount,
+            discount_amount,
+            due_date: invoice.due_date,
+            paid_on_time,
+            status: invoice.status.clone(),
+        });
 
         Ok(())
     }
@@ -500,6 +616,7 @@ impl InvoiceLiquidityContract {
                 Ok(0)
             }
             InvoiceStatus::Defaulted => Err(ContractError::InvoiceDefaulted),
+            InvoiceStatus::Expired => Err(ContractError::InvoiceExpired),
             InvoiceStatus::Cancelled => Err(ContractError::InvoiceNotFound),
             InvoiceStatus::Paid => {
                 // Yield = the discount amount the LP earned
@@ -553,6 +670,7 @@ impl InvoiceLiquidityContract {
             }
             InvoiceStatus::Paid => return Err(ContractError::AlreadyPaid),
             InvoiceStatus::Defaulted => return Err(ContractError::InvoiceDefaulted),
+            InvoiceStatus::Expired => return Err(ContractError::InvoiceExpired),
             InvoiceStatus::Cancelled => return Err(ContractError::InvoiceNotFound),
         }
 
@@ -584,10 +702,18 @@ impl InvoiceLiquidityContract {
             set_payer_score(&env, &invoice.payer, 0);
         }
 
-        // Emit event
-        #[allow(deprecated)]
-        env.events()
-            .publish((symbol_short!("defaulted"),), invoice_id);
+        env.events().publish_event(&InvoiceDefaulted {
+            invoice_id: invoice.id,
+            funder,
+            freelancer: invoice.freelancer.clone(),
+            payer: invoice.payer.clone(),
+            token: invoice.token.clone(),
+            amount: invoice.amount,
+            due_date: invoice.due_date,
+            defaulted_at: now,
+            discount_amount,
+            status: invoice.status.clone(),
+        });
 
         Ok(())
     }
@@ -645,6 +771,32 @@ fn discount_rate_as_i128(rate: u32) -> i128 {
     rate as i128
 }
 
+fn validate_invoice_terms(
+    env: &Env,
+    amount: i128,
+    due_date: u64,
+    discount_rate: u32,
+) -> Result<(), ContractError> {
+    if amount <= 0 {
+        return Err(ContractError::InvalidAmount);
+    }
+
+    let max_rate: u32 = env
+        .storage()
+        .instance()
+        .get(&StorageKey::MaxDiscountRate)
+        .unwrap_or(5000);
+    if discount_rate == 0 || discount_rate > max_rate {
+        return Err(ContractError::InvalidDiscountRate);
+    }
+
+    if due_date <= env.ledger().timestamp() {
+        return Err(ContractError::InvalidDueDate);
+    }
+
+    Ok(())
+}
+
 fn is_approved_token(env: &Env, token: &Address) -> bool {
     env.storage()
         .persistent()
@@ -664,7 +816,7 @@ fn notify_distribution_funding(env: &Env, lp: &Address, amount_usdc_equivalent: 
     let args = vec![
         env,
         lp.clone().into_val(env),
-        amount_usdc_equivalent.into_val(env)
+        amount_usdc_equivalent.into_val(env),
     ];
     env.invoke_contract::<()>(&dist_contract, &Symbol::new(env, "accrue_lp"), args);
 }
@@ -687,7 +839,7 @@ fn notify_distribution_settlement(
         env,
         freelancer.clone().into_val(env),
         payer.clone().into_val(env),
-        settled_on_time.into_val(env)
+        settled_on_time.into_val(env),
     ];
     env.invoke_contract::<()>(&dist_contract, &Symbol::new(env, "accrue_settlement"), args);
 }
@@ -698,10 +850,10 @@ fn notify_distribution_settlement(
 
 mod test;
 mod tests_arithmetic;
-mod tests_state_machine;
-mod tests_security;
-mod tests_protocol_fee;
-mod tests_distribution;
-mod tests_storage;
 mod tests_auth;
+mod tests_distribution;
 mod tests_mutation;
+mod tests_protocol_fee;
+mod tests_security;
+mod tests_state_machine;
+mod tests_storage;

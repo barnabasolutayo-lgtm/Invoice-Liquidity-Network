@@ -175,7 +175,7 @@
   "ledger": {
     "protocol_version": 25,
     "sequence_number": 1500000,
-    "timestamp": 7500000,
+    "timestamp": 43200,
     "network_id": "0000000000000000000000000000000000000000000000000000000000000000",
     "base_reserve": 0,
     "min_persistent_entry_ttl": 4096,
@@ -463,7 +463,7 @@
                       "symbol": "funded_at"
                     },
                     "val": {
-                      "u64": "7500000"
+                      "u64": "43200"
                     }
                   },
                   {

@@ -87,6 +87,35 @@ The repository now includes a typed SDK package at [sdk/README.md](/Users/mac/De
 npm install @invoice-liquidity/sdk
 ```
 
+## CLI
+
+The repository also includes a dedicated CLI package in [cli/README.md](./cli/README.md).
+
+```bash
+npm install -g @invoice-liquidity/cli
+```
+
+Create a `.iln.json` file with your network, contract, token, and signer settings:
+
+```json
+{
+  "network": "testnet",
+  "contractId": "CD3TE3IAHM737P236XZL2OYU275ZKD6MN7YH7PYYAXYIGEH55OPEWYJC",
+  "tokenId": "CDUMMYYOURTOKENIDHERE",
+  "keypairPath": "~/.config/iln/freelancer.secret"
+}
+```
+
+Common commands:
+
+```bash
+iln submit --payer G... --amount 100 --due 2025-12-31 --rate 300
+iln fund --id 1
+iln pay --id 1
+iln status --id 1
+iln list --address G...
+```
+
 ## Frontend Snapshot Tests
 
 The frontend uses Vitest snapshots for key UI states so unintentional visual changes are caught during review.

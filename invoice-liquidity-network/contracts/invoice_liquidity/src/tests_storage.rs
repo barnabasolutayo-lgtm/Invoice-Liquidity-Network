@@ -1,11 +1,11 @@
 #![cfg(test)]
 
 use super::*;
-use crate::invoice::{InvoiceParams, InvoiceStatus, StorageKey};
+use crate::invoice::{InvoiceStatus, StorageKey};
 use soroban_sdk::{
     testutils::{storage::Persistent, Address as _, Ledger},
     token::{Client as TokenClient, StellarAssetClient},
-    Address, Env, Vec,
+    Address, Env,
 };
 
 struct TestEnv {
@@ -106,7 +106,7 @@ fn test_fund_invoice_extends_ttl() {
     // Advance ledger state to simulate time passed (enough to cross threshold)
     let mut ledger = t.env.ledger().get();
     ledger.sequence_number += 1_500_000;
-    ledger.timestamp += 7_500_000;
+    ledger.timestamp += 43_200;
     t.env.ledger().set(ledger);
 
     // Call fund_invoice which should refresh the TTL on the entry

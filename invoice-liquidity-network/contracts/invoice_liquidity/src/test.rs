@@ -2,9 +2,9 @@
 
 use super::*;
 use soroban_sdk::{
-    testutils::{Address as _, Ledger},
+    testutils::{Address as _, Events as _, Ledger},
     token::{Client as TokenClient, StellarAssetClient},
-    Address, Env,
+    Address, Env, Event,
 };
 
 // ----------------------------------------------------------------
@@ -319,6 +319,136 @@ fn test_submit_rejects_discount_rate_above_50_percent() {
         &5_001, // 50.01% — just over the cap
         &t.token.address,
     );
+
+    assert_eq!(result, Err(Ok(ContractError::InvalidDiscountRate)));
+}
+
+// ----------------------------------------------------------------
+// update_invoice
+// ----------------------------------------------------------------
+
+#[test]
+fn test_update_invoice_updates_pending_invoice_fields() {
+    let t = setup();
+    let id = submit_standard_invoice(&t);
+    let updated_amount = INVOICE_AMOUNT + 250_000_000;
+    let updated_due_date = t.env.ledger().timestamp() + DUE_DATE_OFFSET * 2;
+    let updated_discount_rate = DISCOUNT_RATE + 100;
+
+    t.contract.update_invoice(
+        &t.freelancer,
+        &id,
+        &updated_amount,
+        &updated_due_date,
+        &updated_discount_rate,
+    );
+
+    let invoice = t.contract.get_invoice(&id);
+    assert_eq!(invoice.amount, updated_amount);
+    assert_eq!(invoice.due_date, updated_due_date);
+    assert_eq!(invoice.discount_rate, updated_discount_rate);
+    assert_eq!(invoice.payer, t.payer);
+    assert_eq!(invoice.status, InvoiceStatus::Pending);
+}
+
+#[test]
+fn test_update_invoice_emits_updated_event() {
+    let t = setup();
+    let id = submit_standard_invoice(&t);
+    let updated_amount = INVOICE_AMOUNT + 250_000_000;
+    let updated_due_date = t.env.ledger().timestamp() + DUE_DATE_OFFSET * 2;
+    let updated_discount_rate = DISCOUNT_RATE + 100;
+
+    t.contract.update_invoice(
+        &t.freelancer,
+        &id,
+        &updated_amount,
+        &updated_due_date,
+        &updated_discount_rate,
+    );
+
+    let expected_event = InvoiceUpdated {
+        invoice_id: id,
+        freelancer: t.freelancer.clone(),
+        payer: t.payer.clone(),
+        token: t.token.address.clone(),
+        amount: updated_amount,
+        due_date: updated_due_date,
+        discount_rate: updated_discount_rate,
+        status: InvoiceStatus::Pending,
+    };
+
+    let events = t.env.events().all().filter_by_contract(&t.contract.address);
+    assert_eq!(
+        events.events().last(),
+        Some(&expected_event.to_xdr(&t.env, &t.contract.address))
+    );
+}
+
+#[test]
+fn test_update_invoice_rejects_non_freelancer() {
+    let t = setup();
+    let id = submit_standard_invoice(&t);
+    let impostor = Address::generate(&t.env);
+    let updated_due_date = t.env.ledger().timestamp() + DUE_DATE_OFFSET * 2;
+
+    let result =
+        t.contract
+            .try_update_invoice(&impostor, &id, &INVOICE_AMOUNT, &updated_due_date, &DISCOUNT_RATE);
+
+    assert_eq!(result, Err(Ok(ContractError::Unauthorized)));
+}
+
+#[test]
+fn test_update_funded_invoice_fails() {
+    let t = setup();
+    let id = submit_standard_invoice(&t);
+    let updated_due_date = t.env.ledger().timestamp() + DUE_DATE_OFFSET * 2;
+
+    t.contract.fund_invoice(&t.funder, &id, &INVOICE_AMOUNT);
+
+    let result =
+        t.contract
+            .try_update_invoice(&t.freelancer, &id, &INVOICE_AMOUNT, &updated_due_date, &DISCOUNT_RATE);
+
+    assert_eq!(result, Err(Ok(ContractError::AlreadyFunded)));
+}
+
+#[test]
+fn test_update_invoice_rejects_invalid_amount() {
+    let t = setup();
+    let id = submit_standard_invoice(&t);
+    let updated_due_date = t.env.ledger().timestamp() + DUE_DATE_OFFSET * 2;
+
+    let result = t
+        .contract
+        .try_update_invoice(&t.freelancer, &id, &0, &updated_due_date, &DISCOUNT_RATE);
+
+    assert_eq!(result, Err(Ok(ContractError::InvalidAmount)));
+}
+
+#[test]
+fn test_update_invoice_rejects_invalid_due_date() {
+    let t = setup();
+    let id = submit_standard_invoice(&t);
+    let past_due_date = t.env.ledger().timestamp();
+
+    let result =
+        t.contract
+            .try_update_invoice(&t.freelancer, &id, &INVOICE_AMOUNT, &past_due_date, &DISCOUNT_RATE);
+
+    assert_eq!(result, Err(Ok(ContractError::InvalidDueDate)));
+}
+
+#[test]
+fn test_update_invoice_rejects_invalid_discount_rate() {
+    let t = setup();
+    let id = submit_standard_invoice(&t);
+    let updated_due_date = t.env.ledger().timestamp() + DUE_DATE_OFFSET * 2;
+
+    let result = t
+        .contract
+        .try_update_invoice(&t.freelancer, &id, &INVOICE_AMOUNT, &updated_due_date, &0);
 
     assert_eq!(result, Err(Ok(ContractError::InvalidDiscountRate)));
 }
@@ -664,6 +794,51 @@ fn test_claim_default_twice_fails() {
 
     let result = t.contract.try_claim_default(&t.funder, &id);
     assert_eq!(result, Err(Ok(ContractError::InvoiceDefaulted)));
+}
+
+#[test]
+fn test_expire_pending_invoice_after_due_date() {
+    let t = setup();
+    let id = submit_standard_invoice(&t);
+
+    let mut ledger = t.env.ledger().get();
+    ledger.timestamp += DUE_DATE_OFFSET + 1;
+    t.env.ledger().set(ledger);
+
+    t.contract.expire_invoice(&id);
+
+    let invoice = t.contract.get_invoice(&id);
+    assert_eq!(invoice.status, InvoiceStatus::Expired);
+}
+
+#[test]
+fn test_expire_pending_invoice_before_due_date_fails() {
+    let t = setup();
+    let id = submit_standard_invoice(&t);
+
+    let result = t.contract.try_expire_invoice(&id);
+    assert_eq!(result, Err(Ok(ContractError::NotYetDefaulted)));
+
+    let invoice = t.contract.get_invoice(&id);
+    assert_eq!(invoice.status, InvoiceStatus::Pending);
+}
+
+#[test]
+fn test_fund_expired_invoice_fails() {
+    let t = setup();
+    let id = submit_standard_invoice(&t);
+
+    let mut ledger = t.env.ledger().get();
+    ledger.timestamp += DUE_DATE_OFFSET + 1;
+    t.env.ledger().set(ledger);
+
+    t.contract.expire_invoice(&id);
+
+    let result = t.contract.try_fund_invoice(&t.funder, &id, &INVOICE_AMOUNT);
+    assert_eq!(result, Err(Ok(ContractError::InvoiceExpired)));
+
+    let invoice = t.contract.get_invoice(&id);
+    assert_eq!(invoice.status, InvoiceStatus::Expired);
 }
 
 #[test]

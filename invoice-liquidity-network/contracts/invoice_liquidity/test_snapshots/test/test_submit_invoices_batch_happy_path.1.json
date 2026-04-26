@@ -1272,10 +1272,64 @@
             "topics": [
               {
                 "symbol": "submitted"
+              },
+              {
+                "u64": "1"
+              },
+              {
+                "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+              },
+              {
+                "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
               }
             ],
             "data": {
-              "u64": "1"
+              "map": [
+                {
+                  "key": {
+                    "symbol": "amount"
+                  },
+                  "val": {
+                    "i128": "1000000000"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "discount_rate"
+                  },
+                  "val": {
+                    "u32": 300
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "due_date"
+                  },
+                  "val": {
+                    "u64": "1702592000"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "status"
+                  },
+                  "val": {
+                    "vec": [
+                      {
+                        "symbol": "Pending"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "token"
+                  },
+                  "val": {
+                    "address": "CBEPDNVYXQGWB5YUBXKJWYJA7OXTZW5LFLNO5JRRGE6Z6C5OSUZPCCEL"
+                  }
+                }
+              ]
             }
           }
         }
@@ -1292,10 +1346,64 @@
             "topics": [
               {
                 "symbol": "submitted"
+              },
+              {
+                "u64": "2"
+              },
+              {
+                "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+              },
+              {
+                "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
               }
             ],
             "data": {
-              "u64": "2"
+              "map": [
+                {
+                  "key": {
+                    "symbol": "amount"
+                  },
+                  "val": {
+                    "i128": "1000000000"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "discount_rate"
+                  },
+                  "val": {
+                    "u32": 300
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "due_date"
+                  },
+                  "val": {
+                    "u64": "1702592000"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "status"
+                  },
+                  "val": {
+                    "vec": [
+                      {
+                        "symbol": "Pending"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "token"
+                  },
+                  "val": {
+                    "address": "CBEPDNVYXQGWB5YUBXKJWYJA7OXTZW5LFLNO5JRRGE6Z6C5OSUZPCCEL"
+                  }
+                }
+              ]
             }
           }
         }
@@ -1312,10 +1420,64 @@
             "topics": [
               {
                 "symbol": "submitted"
+              },
+              {
+                "u64": "3"
+              },
+              {
+                "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+              },
+              {
+                "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
               }
             ],
             "data": {
-              "u64": "3"
+              "map": [
+                {
+                  "key": {
+                    "symbol": "amount"
+                  },
+                  "val": {
+                    "i128": "1000000000"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "discount_rate"
+                  },
+                  "val": {
+                    "u32": 300
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "due_date"
+                  },
+                  "val": {
+                    "u64": "1702592000"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "status"
+                  },
+                  "val": {
+                    "vec": [
+                      {
+                        "symbol": "Pending"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "token"
+                  },
+                  "val": {
+                    "address": "CBEPDNVYXQGWB5YUBXKJWYJA7OXTZW5LFLNO5JRRGE6Z6C5OSUZPCCEL"
+                  }
+                }
+              ]
             }
           }
         }

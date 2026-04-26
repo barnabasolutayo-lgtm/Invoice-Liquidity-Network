@@ -66,7 +66,14 @@ fn setup() -> TestEnv {
     ledger_info.timestamp = 1_700_000_000;
     env.ledger().set(ledger_info);
 
-    TestEnv { env, contract, token, freelancer, payer, funder }
+    TestEnv {
+        env,
+        contract,
+        token,
+        freelancer,
+        payer,
+        funder,
+    }
 }
 
 // ----------------------------------------------------------------
@@ -162,8 +169,7 @@ fn mt03_payer_score_increases_by_exactly_one_on_settlement() {
 
     let score_after = t.contract.payer_score(&t.payer);
     assert_eq!(
-        score_after,
-        51,
+        score_after, 51,
         "score should increase by exactly 1 (50 → 51)"
     );
 }
@@ -245,7 +251,10 @@ fn mt05_payer_score_floors_at_zero_not_negative() {
     }
 
     let score_after_nine_defaults = t.contract.payer_score(&t.payer);
-    assert_eq!(score_after_nine_defaults, 5, "after 9 defaults score should be 5");
+    assert_eq!(
+        score_after_nine_defaults, 5,
+        "after 9 defaults score should be 5"
+    );
 
     // 10th default: score is 5, NOT > 5, so guard should floor it to 0
     let last_due = t.env.ledger().timestamp() + DUE_DATE_OFFSET;
@@ -258,7 +267,8 @@ fn mt05_payer_score_floors_at_zero_not_negative() {
         &t.token.address,
     );
 
-    t.contract.fund_invoice(&t.funder, &last_id, &INVOICE_AMOUNT);
+    t.contract
+        .fund_invoice(&t.funder, &last_id, &INVOICE_AMOUNT);
 
     let mut ledger = t.env.ledger().get();
     ledger.timestamp += DUE_DATE_OFFSET + 1;
@@ -291,7 +301,10 @@ fn mt06_discount_rate_at_cap_is_accepted() {
         &t.token.address,
     );
 
-    assert!(result.is_ok(), "discount_rate == 5000 (50%) should be accepted");
+    assert!(
+        result.is_ok(),
+        "discount_rate == 5000 (50%) should be accepted"
+    );
 }
 
 // ----------------------------------------------------------------
@@ -309,5 +322,8 @@ fn mt07_suggested_discount_rate_formula() {
 
     // Default score is 50, so suggested rate = 500 + (100 - 50) * 5 = 750
     let rate = t.contract.suggested_discount_rate(&t.payer);
-    assert_eq!(rate, 750, "default payer (score=50) should get suggested rate of 750 bps");
+    assert_eq!(
+        rate, 750,
+        "default payer (score=50) should get suggested rate of 750 bps"
+    );
 }
