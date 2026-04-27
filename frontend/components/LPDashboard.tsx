@@ -519,6 +519,8 @@ export default function LPDashboard() {
           isLoading={loading}
           onClaimDefault={handleClaimDefault}
           claimingInvoiceId={claimingInvoiceId}
+          tokenMap={tokenMap}
+          defaultToken={defaultToken}
         />
       ) : (
         <div className="overflow-x-auto">

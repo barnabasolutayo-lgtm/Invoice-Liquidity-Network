@@ -1,16 +1,23 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { formatAddress, formatDate, formatUSDC, calculateYield } from "../utils/format";
 import type { Invoice } from "../utils/soroban";
+import type { ApprovedToken } from "../hooks/useApprovedTokens";
 import InvoiceTable, { ColumnDefinition } from "./InvoiceTable";
 import { EmptyState } from "./EmptyState";
 import { LPPortfolioEmptyIllustration } from "./illustrations/EmptyIllustrations";
+import LPTokenMetricsCards from "./LPTokenMetricsCards";
+import WeeklyYieldChart from "./WeeklyYieldChart";
+import { calculatePerTokenMetrics } from "../utils/per-token-yield";
 
 interface LPPortfolioProps {
   invoices: Invoice[];
   isLoading: boolean;
   onClaimDefault: (invoice: Invoice) => Promise<void>;
   claimingInvoiceId: string | null;
+  tokenMap?: Map<string, ApprovedToken>;
+  defaultToken?: ApprovedToken | null;
 }
 
 export default function LPPortfolio({
@@ -18,8 +25,18 @@ export default function LPPortfolio({
   isLoading,
   onClaimDefault,
   claimingInvoiceId,
+  tokenMap = new Map(),
+  defaultToken = null,
 }: LPPortfolioProps) {
+  const [showUSDEquivalent, setShowUSDEquivalent] = useState(false);
   const now = Date.now();
+
+  // Calculate per-token metrics
+  const perTokenMetrics = useMemo(
+    () => calculatePerTokenMetrics(invoices, tokenMap, defaultToken),
+    [invoices, tokenMap, defaultToken],
+  );
+
   const totalYieldEarned = invoices
     .filter((invoice) => invoice.status === "Paid")
     .reduce((total, invoice) => total + calculateYield(invoice.amount, invoice.discount_rate), 0n);
@@ -111,12 +128,32 @@ export default function LPPortfolio({
   ];
 
   return (
-    <div className="space-y-4 p-6">
+    <div className="space-y-6 p-6">
+      {/* Total Yield Card (Legacy) */}
       <div className="rounded-xl border border-green-200 bg-green-50 p-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-green-700">Total Yield Earned</p>
         <p className="mt-1 text-2xl font-bold text-green-700">{formatUSDC(totalYieldEarned)}</p>
       </div>
 
+      {/* Per-Token Metrics Cards */}
+      {perTokenMetrics.length > 0 && (
+        <LPTokenMetricsCards
+          metrics={perTokenMetrics}
+          showUSDEquivalent={showUSDEquivalent}
+          onToggleUSD={() => setShowUSDEquivalent(!showUSDEquivalent)}
+        />
+      )}
+
+      {/* Weekly Yield Chart */}
+      {perTokenMetrics.length > 0 && (
+        <WeeklyYieldChart
+          invoices={invoices}
+          metrics={perTokenMetrics}
+          showUSDEquivalent={showUSDEquivalent}
+        />
+      )}
+
+      {/* Portfolio Table */}
       <InvoiceTable
         tableId="lp_portfolio_table"
         data={invoices}
