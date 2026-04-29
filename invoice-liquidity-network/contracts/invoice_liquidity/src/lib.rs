@@ -1,3 +1,35 @@
+    // ------------------------------------------------------------
+    // cancel_invoice
+    // ------------------------------------------------------------
+    pub fn cancel_invoice(env: Env, invoice_id: u64) -> Result<(), ContractError> {
+        if !invoice_exists(&env, invoice_id) {
+            return Err(ContractError::InvoiceNotFound);
+        }
+
+        let mut invoice = load_invoice(&env, invoice_id);
+
+        invoice.freelancer.require_auth();
+
+        match invoice.status {
+            InvoiceStatus::Pending => {},
+            InvoiceStatus::Cancelled => return Err(ContractError::AlreadyCancelled),
+            InvoiceStatus::PartiallyFunded | InvoiceStatus::Funded => {
+                return Err(ContractError::AlreadyFunded)
+            }
+            InvoiceStatus::Paid => return Err(ContractError::AlreadyPaid),
+            InvoiceStatus::Defaulted => return Err(ContractError::InvoiceDefaulted),
+            InvoiceStatus::Expired => return Err(ContractError::InvoiceExpired),
+            InvoiceStatus::InvoiceCancelled => return Err(ContractError::AlreadyCancelled),
+        }
+
+        invoice.status = InvoiceStatus::Cancelled;
+        save_invoice(&env, &invoice);
+
+        // Emit cancelled event
+        env.events().publish((Symbol::short("cancelled"), invoice_id), invoice.freelancer.clone());
+
+        Ok(())
+    }
 #![no_std]
 
 mod errors;
@@ -331,7 +363,7 @@ impl InvoiceLiquidityContract {
             InvoiceStatus::Expired => return Err(ContractError::InvoiceExpired),
             InvoiceStatus::Funded => return Err(ContractError::AlreadyFunded),
             InvoiceStatus::Pending | InvoiceStatus::PartiallyFunded => {} // all good
-            InvoiceStatus::Cancelled => return Err(ContractError::InvoiceNotFound),
+            InvoiceStatus::Cancelled | InvoiceStatus::InvoiceCancelled => return Err(ContractError::AlreadyCancelled),
         }
 
         if invoice.amount_funded + fund_amount > invoice.amount {
