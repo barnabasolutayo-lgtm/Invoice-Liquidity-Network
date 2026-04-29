@@ -1,5 +1,6 @@
 # Documentation Index
 
+- [Analytics](analytics.md)
 - [Benchmarks](benchmarks.md)
 - [Governance](governance.md)
 - [Local Development](local-development.md)
