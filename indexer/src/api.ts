@@ -1,5 +1,13 @@
 import express, { Request, Response } from "express";
-import { getInvoiceById, queryInvoices } from "./db";
+import {
+  getFreelancerStats,
+  getInvoiceById,
+  getInvoiceHistory,
+  getLPStats,
+  getProtocolStats,
+  getTopLPs,
+  queryInvoices,
+} from "./db";
 
 /**
  * Build and return the Express application.
@@ -34,12 +42,48 @@ export function createApp(): express.Application {
     res.json({ invoices });
   });
 
+  app.get("/stats", (_req: Request, res: Response) => {
+    res.json(getProtocolStats());
+  });
+
+  app.get("/lps/top", (req: Request, res: Response) => {
+    const rawLimit = typeof req.query.limit === "string" ? Number(req.query.limit) : 10;
+    const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 10;
+    const period = typeof req.query.period === "string" ? req.query.period : "all";
+
+    if (!["all", "week", "month"].includes(period)) {
+      res.status(400).json({ error: "Invalid period - expected all, week, or month" });
+      return;
+    }
+
+    res.json(getTopLPs(limit, period));
+  });
+
+  app.get("/lps/:address/stats", (req: Request, res: Response) => {
+    res.json(getLPStats(req.params.address));
+  });
+
+  app.get("/freelancers/:address/stats", (req: Request, res: Response) => {
+    res.json(getFreelancerStats(req.params.address));
+  });
+
+  app.get("/history/:address", (req: Request, res: Response) => {
+    const role = typeof req.query.role === "string" ? req.query.role : "freelancer";
+
+    if (role !== "freelancer" && role !== "payer" && role !== "funder") {
+      res.status(400).json({ error: "Invalid role - expected freelancer, payer, or funder" });
+      return;
+    }
+
+    res.json(getInvoiceHistory(req.params.address, role));
+  });
+
   // ── GET /invoice/:id ───────────────────────────────────────────────────────
   app.get("/invoice/:id", (req: Request, res: Response) => {
     const id = parseInt(req.params.id, 10);
 
     if (isNaN(id) || id <= 0) {
-      res.status(400).json({ error: "Invalid invoice ID — must be a positive integer" });
+      res.status(400).json({ error: "Invalid invoice ID - must be a positive integer" });
       return;
     }
 

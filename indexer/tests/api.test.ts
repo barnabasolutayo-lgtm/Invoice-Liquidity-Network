@@ -77,6 +77,80 @@ describe("GET /invoices", () => {
   });
 });
 
+describe("GET /stats", () => {
+  it("returns protocol-level analytics", async () => {
+    const res = await request(app).get("/stats");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      totalInvoices: 5,
+      totalVolume: "500000000",
+      totalYield: "3000000",
+      defaultRate: 0.5,
+    });
+  });
+});
+
+describe("GET /lps/:address/stats", () => {
+  it("returns LP deployment, yield, invoice count, and default rate", async () => {
+    const res = await request(app).get(`/lps/${G3}/stats`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      deployed: "200000000",
+      yield: "3000000",
+      invoiceCount: 2,
+      defaultRate: 0,
+    });
+  });
+});
+
+describe("GET /freelancers/:address/stats", () => {
+  it("returns freelancer submission and payout stats", async () => {
+    const res = await request(app).get(`/freelancers/${G1}/stats`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      submitted: 2,
+      funded: 1,
+      totalReceived: "97000000",
+      avgDiscount: 300,
+    });
+  });
+});
+
+describe("GET /history/:address", () => {
+  it("returns invoice history for a supported role", async () => {
+    const res = await request(app).get(`/history/${G3}?role=funder`);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+    res.body.forEach((inv: any) => expect(inv.funder).toBe(G3));
+  });
+
+  it("rejects unsupported roles", async () => {
+    const res = await request(app).get(`/history/${G3}?role=admin`);
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+});
+
+describe("GET /lps/top", () => {
+  it("returns LPs sorted by realized yield", async () => {
+    const res = await request(app).get("/lps/top?limit=5&period=all");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([
+      {
+        address: G3,
+        yield: "3000000",
+        invoiceCount: 2,
+      },
+    ]);
+  });
+
+  it("rejects unsupported periods", async () => {
+    const res = await request(app).get("/lps/top?period=year");
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+});
+
 // ── GET /invoices?status ───────────────────────────────────────────────────────
 
 describe("GET /invoices?status", () => {

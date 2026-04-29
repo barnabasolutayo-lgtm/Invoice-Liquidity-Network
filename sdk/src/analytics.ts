@@ -21,15 +21,15 @@ export interface FreelancerStats {
   avgDiscount: number;
 }
 
-export interface Invoice {
-  id: string;
+export interface AnalyticsInvoice {
+  id: number;
   freelancer: string;
   payer: string;
-  amount: string;
+  amount: bigint;
   due_date: number;
   discount_rate: number;
   status: string;
-  funder?: string;
+  funder: string | null;
 }
 
 export interface LPStat {
@@ -58,10 +58,34 @@ export class AnalyticsSDK {
     }
 
     const response = await axios.get(`${this.baseUrl}${endpoint}`);
-    const data = response.data;
+    const data = this.parseBigInts(response.data);
 
     this.cache.set(key, { data, timestamp: now });
     return data as T;
+  }
+
+  private parseBigInts(value: any): any {
+    if (Array.isArray(value)) {
+      return value.map((item) => this.parseBigInts(item));
+    }
+
+    if (!value || typeof value !== 'object') {
+      return value;
+    }
+
+    const parsed: Record<string, unknown> = {};
+    for (const [key, fieldValue] of Object.entries(value)) {
+      if (
+        typeof fieldValue === 'string' &&
+        ['amount', 'totalVolume', 'totalYield', 'deployed', 'yield', 'totalReceived'].includes(key)
+      ) {
+        parsed[key] = BigInt(fieldValue);
+      } else {
+        parsed[key] = this.parseBigInts(fieldValue);
+      }
+    }
+
+    return parsed;
   }
 
   async getProtocolStats(): Promise<ProtocolStats> {
@@ -76,11 +100,11 @@ export class AnalyticsSDK {
     return this.fetchWithCache<FreelancerStats>(`freelancer-stats-${address}`, `/freelancers/${address}/stats`);
   }
 
-  async getInvoiceHistory(address: string, role: 'freelancer' | 'payer' | 'funder'): Promise<Invoice[]> {
-    return this.fetchWithCache<Invoice[]>(`history-${address}-${role}`, `/history/${address}?role=${role}`);
+  async getInvoiceHistory(address: string, role: 'freelancer' | 'payer' | 'funder'): Promise<AnalyticsInvoice[]> {
+    return this.fetchWithCache<AnalyticsInvoice[]>(`history-${address}-${role}`, `/history/${address}?role=${role}`);
   }
 
-  async getTopLPs(limit: number = 10, period: string = 'all'): Promise<LPStat[]> {
+  async getTopLPs(limit: number = 10, period: 'all' | 'week' | 'month' = 'all'): Promise<LPStat[]> {
     return this.fetchWithCache<LPStat[]>(`top-lps-${limit}-${period}`, `/lps/top?limit=${limit}&period=${period}`);
   }
 

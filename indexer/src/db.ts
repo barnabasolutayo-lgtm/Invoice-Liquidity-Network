@@ -170,6 +170,167 @@ export function queryInvoices(filter: InvoiceFilter): Invoice[] {
     .all(...params) as Invoice[];
 }
 
+export interface ProtocolStats {
+  totalInvoices: number;
+  totalVolume: string;
+  totalYield: string;
+  defaultRate: number;
+}
+
+export interface LPStats {
+  deployed: string;
+  yield: string;
+  invoiceCount: number;
+  defaultRate: number;
+}
+
+export interface FreelancerStats {
+  submitted: number;
+  funded: number;
+  totalReceived: string;
+  avgDiscount: number;
+}
+
+export interface LPStat {
+  address: string;
+  yield: string;
+  invoiceCount: number;
+}
+
+function discountFor(invoice: Invoice): bigint {
+  return (BigInt(invoice.amount) * BigInt(invoice.discount_rate)) / 10_000n;
+}
+
+function terminalDefaultRate(invoices: Invoice[]): number {
+  const terminal = invoices.filter(
+    (invoice) => invoice.status === "Paid" || invoice.status === "Defaulted"
+  );
+  if (terminal.length === 0) {
+    return 0;
+  }
+
+  const defaults = terminal.filter((invoice) => invoice.status === "Defaulted").length;
+  return defaults / terminal.length;
+}
+
+export function getProtocolStats(): ProtocolStats {
+  const invoices = queryInvoices({});
+  const totalVolume = invoices.reduce(
+    (sum, invoice) => sum + BigInt(invoice.amount),
+    0n
+  );
+  const totalYield = invoices
+    .filter((invoice) => invoice.status === "Paid")
+    .reduce((sum, invoice) => sum + discountFor(invoice), 0n);
+
+  return {
+    totalInvoices: invoices.length,
+    totalVolume: totalVolume.toString(),
+    totalYield: totalYield.toString(),
+    defaultRate: terminalDefaultRate(invoices),
+  };
+}
+
+export function getLPStats(address: string): LPStats {
+  const invoices = queryInvoices({ funder: address });
+  const deployed = invoices.reduce(
+    (sum, invoice) => sum + BigInt(invoice.amount),
+    0n
+  );
+  const earnedYield = invoices
+    .filter((invoice) => invoice.status === "Paid")
+    .reduce((sum, invoice) => sum + discountFor(invoice), 0n);
+
+  return {
+    deployed: deployed.toString(),
+    yield: earnedYield.toString(),
+    invoiceCount: invoices.length,
+    defaultRate: terminalDefaultRate(invoices),
+  };
+}
+
+export function getFreelancerStats(address: string): FreelancerStats {
+  const invoices = queryInvoices({ freelancer: address });
+  const fundedInvoices = invoices.filter(
+    (invoice) =>
+      invoice.status === "Funded" ||
+      invoice.status === "Paid" ||
+      invoice.status === "Defaulted"
+  );
+  const totalReceived = fundedInvoices.reduce(
+    (sum, invoice) => sum + BigInt(invoice.amount) - discountFor(invoice),
+    0n
+  );
+  const avgDiscount =
+    invoices.length === 0
+      ? 0
+      : invoices.reduce((sum, invoice) => sum + invoice.discount_rate, 0) /
+        invoices.length;
+
+  return {
+    submitted: invoices.length,
+    funded: fundedInvoices.length,
+    totalReceived: totalReceived.toString(),
+    avgDiscount,
+  };
+}
+
+export function getInvoiceHistory(
+  address: string,
+  role: "freelancer" | "payer" | "funder"
+): Invoice[] {
+  return queryInvoices({ [role]: address });
+}
+
+export function getTopLPs(limit: number, period: string): LPStat[] {
+  const now = Date.now();
+  const since =
+    period === "week"
+      ? now - 7 * 24 * 60 * 60 * 1000
+      : period === "month"
+        ? now - 30 * 24 * 60 * 60 * 1000
+        : 0;
+  const invoices = queryInvoices({}).filter((invoice) => {
+    if (!invoice.funder) {
+      return false;
+    }
+    if (since === 0) {
+      return true;
+    }
+    const timestampMs = invoice.funded_at ? invoice.funded_at * 1000 : invoice.created_at;
+    return timestampMs >= since;
+  });
+  const byAddress = new Map<string, { yield: bigint; invoiceCount: number }>();
+
+  for (const invoice of invoices) {
+    const funder = invoice.funder;
+    if (!funder) {
+      continue;
+    }
+
+    const current = byAddress.get(funder) ?? { yield: 0n, invoiceCount: 0 };
+    current.invoiceCount += 1;
+    if (invoice.status === "Paid") {
+      current.yield += discountFor(invoice);
+    }
+    byAddress.set(funder, current);
+  }
+
+  return Array.from(byAddress.entries())
+    .map(([address, stats]) => ({
+      address,
+      yield: stats.yield.toString(),
+      invoiceCount: stats.invoiceCount,
+    }))
+    .sort((a, b) => {
+      const yieldDelta = BigInt(b.yield) - BigInt(a.yield);
+      if (yieldDelta > 0n) return 1;
+      if (yieldDelta < 0n) return -1;
+      return b.invoiceCount - a.invoiceCount;
+    })
+    .slice(0, limit);
+}
+
 // ─── Event deduplication ──────────────────────────────────────────────────────
 
 /** Return true if this event has already been processed. */
