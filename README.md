@@ -1,35 +1,24 @@
 # Invoice Liquidity Network
 
-[![codecov](https://codecov.io/gh/Nursca/Invoice-Liquidity-Network/branch/main/graph/badge.svg)](https://codecov.io/gh/Nursca/Invoice-Liquidity-Network)
-[![CI](https://github.com/Nursca/Invoice-Liquidity-Network/actions/workflows/ci.yml/badge.svg)](https://github.com/Nursca/Invoice-Liquidity-Network/actions/workflows/ci.yml)
-[![E2E Nightly](https://github.com/Nursca/Invoice-Liquidity-Network/actions/workflows/e2e-nightly.yml/badge.svg)](https://github.com/Nursca/Invoice-Liquidity-Network/actions/workflows/e2e-nightly.yml)
+[![CI](https://github.com/Invoice-Liquidity-Network/Invoice-Liquidity-Network/actions/workflows/ci.yml/badge.svg)](https://github.com/Invoice-Liquidity-Network/Invoice-Liquidity-Network/actions/workflows/ci.yml)
+[![E2E Nightly](https://github.com/Invoice-Liquidity-Network/Invoice-Liquidity-Network/actions/workflows/e2e-nightly.yml/badge.svg)](https://github.com/Invoice-Liquidity-Network/Invoice-Liquidity-Network/actions/workflows/e2e-nightly.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 **Turn unpaid invoices into instant liquidity on-chain, on Stellar.**
 
-Invoice Liquidity Network (ILN) is an open-source, decentralized invoice factoring protocol built on [Stellar](https://stellar.org) using [Soroban](https://soroban.stellar.org) smart contracts. Freelancers, creators, and SMEs can unlock the value of their outstanding invoices immediately, while DeFi liquidity providers earn yield by funding them at a discount.
+Invoice Liquidity Network (ILN) is an open-source, decentralised invoice factoring protocol built on [Stellar](https://stellar.org) using [Soroban](https://soroban.stellar.org) smart contracts. Freelancers, creators, and SMEs unlock the value of outstanding invoices immediately, while DeFi liquidity providers earn yield by funding them at a discount.
 
 No banks. No credit checks. No 60-day waits.
 
 ---
 
-## The Problem
+## Organisation Repositories
 
-Invoice payment delays are one of the most persistent cash flow problems for independent workers and small businesses globally:
-
-- The average invoice payment delay is **30–90 days**
-- Traditional invoice factoring companies charge **3–5% fees** and restrict access
-- Most DeFi lending protocols require crypto collateral — useless for someone holding an invoice, not tokens
-
-## The Solution
-
-ILN creates a two-sided marketplace on Stellar:
-
-|                 Role                  |               What they do                |                 What they get                |
-|---------------------------------------|-------------------------------------------|----------------------------------------------|
-| **Invoice holder** (freelancer / SME) | Submits an unpaid invoice to the protocol | Immediate USDC liquidity at a small discount |
-| **Liquidity provider** (DeFi user)    | Funds invoices at a discount rate         | Yield when the invoice is paid in full       |
-
-The Soroban contract acts as a trustless escrow holding funds, enforcing terms, and releasing payments automatically.
+| Repository | Description | Language |
+|------------|-------------|----------|
+| [Invoice-Liquidity-Network](https://github.com/Invoice-Liquidity-Network/Invoice-Liquidity-Network) | 🏠 **This repo** — org overview, shared docs, SDK, CLI, indexer, notifications | TypeScript |
+| [ILN-Frontend](https://github.com/Invoice-Liquidity-Network/ILN-Frontend) | 🖥️ Next.js dApp — freelancer dashboard, LP analytics, governance UI | TypeScript |
+| [ILN-Smart-Contract](https://github.com/Invoice-Liquidity-Network/ILN-Smart-Contract) | ⚙️ Soroban smart contracts — invoice lifecycle, multi-token, reputation | Rust |
 
 ---
 
@@ -53,120 +42,69 @@ Freelancer                  ILN Contract              Liquidity Provider
                                       (LP earns the spread)
 ```
 
-### Contract lifecycle
-
-1. **Submit** — A freelancer calls `submit_invoice()` with the invoice details and a proposed discount rate
-2. **Fund** — A liquidity provider calls `fund_invoice()`, sending USDC. The freelancer immediately receives `amount × (1 - discount_rate)`
-3. **Pay** — The payer (client) calls `mark_paid()` or is verified off-chain, releasing the full invoice amount to the LP
-4. **Earn** — The LP receives the full invoice value, earning the discount spread as yield
+1. **Submit** — A freelancer calls `submit_invoice()` with amount, payer, due date, and discount rate
+2. **Fund** — A liquidity provider calls `fund_invoice()`, sending USDC. The freelancer receives funds immediately
+3. **Pay** — The payer settles the invoice, releasing the full amount to the LP
+4. **Earn** — The LP earns the discount spread as yield
 
 ---
 
-## Built on Stellar
+## Testnet Deployment
 
-ILN is built natively on Stellar for a reason:
-
-- **Native USDC support** — Stellar has deep USDC liquidity via Circle, making it the ideal stablecoin rail for invoice settlements
-- **Ultra-low fees** — Stellar transactions cost fractions of a cent, making micropayment invoices economically viable
-- **Fast finality** — 3–5 second transaction finality means liquidity moves in near real-time
-- **Soroban smart contracts** — Stellar's native smart contract platform provides the trustless escrow layer ILN needs
-- **Financial inclusion focus** — Stellar's mission aligns with ILN's goal of giving underserved freelancers and SMEs access to capital
-
-### Testnet Deployment
-
-|      Network    |                       Contract ID                          |
-|-----------------|------------------------------------------------------------|
+| Network | Contract ID |
+|---------|-------------|
 | Stellar Testnet | `CD3TE3IAHM737P236XZL2OYU275ZKD6MN7YH7PYYAXYIGEH55OPEWYJC` |
 
 > Mainnet deployment coming after audit. Do not use with real funds until then.
 
-## JavaScript/TypeScript SDK
+---
 
-The repository now includes a typed SDK package at [sdk/README.md](./sdk/README.md) with browser Freighter signing support and Node.js keypair signing.
+## What's in This Repo
+
+This is the **organisation root** — it contains shared infrastructure used across all ILN sub-projects:
+
+### 📦 SDK (`sdk/`)
+A typed JavaScript/TypeScript SDK with browser Freighter signing and Node.js keypair support.
 
 ```bash
 npm install @invoice-liquidity/sdk
 ```
 
-## CLI
+See [`sdk/README.md`](./sdk/README.md) for full API documentation.
 
-The repository also includes a dedicated CLI package in [cli/README.md](./cli/README.md).
+### 🔧 CLI (`cli/`)
+A command-line tool for interacting with the ILN contract on testnet and mainnet.
 
 ```bash
 npm install -g @invoice-liquidity/cli
 ```
-
-Create a `.iln.json` file with your network, contract, token, and signer settings:
-
-```json
-{
-  "network": "testnet",
-  "contractId": "CD3TE3IAHM737P236XZL2OYU275ZKD6MN7YH7PYYAXYIGEH55OPEWYJC",
-  "tokenId": "CDUMMYYOURTOKENIDHERE",
-  "keypairPath": "~/.config/iln/freelancer.secret"
-}
-```
-
-Common commands:
 
 ```bash
 iln submit --payer G... --amount 100 --due 2025-12-31 --rate 300
 iln fund --id 1
 iln pay --id 1
 iln status --id 1
-iln list --address G...
 ```
 
-## Frontend Snapshot Tests
+See [`cli/README.md`](./cli/README.md) for setup and usage.
 
-The frontend uses Vitest snapshots for key UI states so unintentional visual changes are caught during review.
+### 📡 Indexer (`indexer/`)
+A Node.js service that indexes contract events and exposes a REST API for the frontend.
 
-```bash
-cd frontend && npm test
-```
+### 🔔 Notifications (`notifications/`)
+A webhook-based notification service for invoice lifecycle events.
 
-To intentionally refresh committed snapshots after a UI change:
+See [`docs/notifications.md`](./docs/notifications.md) for setup.
 
-cd frontend && npm test -- --update-snapshots
-```
+### 📜 Scripts (`scripts/`)
+Deployment and development helper scripts.
 
-## End-to-End Testing (E2E)
-
-Integration tests validate the smart contract behaviors against a local live Stellar network to ensure perfect balance assertions and lifecycle determinism.
-
-**Prerequisites:**
-You must have [Docker](https://docs.docker.com/get-docker/) installed.
-
-**Running tests locally:**
-1. Start the local Stellar node:
-   ```bash
-   docker-compose up -d
-   ```
-2. Run the suite:
-   ```bash
-   npm run test:e2e
-   ```
-*If Docker is unavailable, the tests will detect unreachable nodes and gracefully skip instead of failing.*
-
-**Continuous Integration (CI):**
-E2E testing is fully integrated into GitHub Actions, but skipped by default to save CI minutes. To force CI to run the `e2e-tests` job, set the environment variable:
-`RUN_E2E=true`
-
----
-
-## Load Testing
-
-We use k6 to perform load testing on the indexer API to ensure performance under stress.
-
-### Prerequisites
-Install k6 following the official installation guide.
-
-### Running Load Tests
-The load test script targets the indexer API. You can specify the base URL via an environment variable.
-
-```bash
-BASE_URL=http://localhost:8080 k6 run tests/load/indexer.js
-```
+| Script | Purpose |
+|--------|---------|
+| `scripts/deploy.ts` | Deploy contract to testnet/mainnet |
+| `scripts/fund-wallets.sh` | Fund testnet wallets via Friendbot |
+| `scripts/seed.sh` | Seed test data |
+| `scripts/dev-setup.sh` | Set up a local dev environment |
 
 ---
 
@@ -174,291 +112,50 @@ BASE_URL=http://localhost:8080 k6 run tests/load/indexer.js
 
 ```
 .
-├── invoice-liquidity-network/
-│   └── contracts/
-│       └── invoice_liquidity/
-│           ├── src/
-│           │   ├── lib.rs          # Main contract entry point
-│           │   ├── invoice.rs      # Invoice struct + storage
-│           │   ├── errors.rs       # Contract error types
-│           │   └── events.rs       # Contract events
-│           └── Cargo.toml
-├── tests/
-│   ├── submit_invoice_test.rs
-│   ├── fund_invoice_test.rs
-│   └── mark_paid_test.rs
-├── docs/
-│   ├── architecture.md         # System design deep-dive
-│   ├── risk-model.md           # Default handling + LP risk
-│   └── integration-guide.md   # How to integrate ILN
-├── scripts/
-│   ├── deploy.ts               # Deploy to testnet/mainnet
-│   └── invoke.sh               # Helper scripts for contract calls
+├── cli/                    # CLI package (@invoice-liquidity/cli)
+├── docs/                   # Shared protocol documentation
+├── indexer/                # On-chain event indexer service
+├── notifications/          # Webhook notification service
+├── scripts/                # Deployment & dev scripts
+├── sdk/                    # TypeScript SDK (@invoice-liquidity/sdk)
+├── tests/                  # E2E integration tests
+├── .github/workflows/      # CI/CD pipelines
+├── docker-compose.yml      # Local dev environment
+├── CHANGELOG.md
 ├── CONTRIBUTING.md
 ├── LICENSE
-└── README.md
+└── README.md               # You are here
 ```
+
+> **Frontend** and **Smart Contract** source code lives in their own dedicated repositories (linked above as git submodules).
 
 ---
 
-## Smart Contract Interface
-
-### Data Types
-
-```rust
-#[contracttype]
-pub struct Invoice {
-    pub id: u64,
-    pub freelancer: Address,
-    pub payer: Address,
-    pub amount: i128,          // in stroops (1 USDC = 10_000_000 stroops)
-    pub due_date: u64,         // Unix timestamp
-    pub discount_rate: u32,    // basis points, e.g. 300 = 3%
-    pub status: InvoiceStatus,
-    pub funder: Option<Address>,
-}
-
-#[contracttype]
-pub enum InvoiceStatus {
-    Pending,    // submitted, awaiting funding
-    Funded,     // LP has funded, freelancer paid out
-    Paid,       // payer has settled, LP released
-    Defaulted,  // past due_date, not paid
-}
-```
-
-### Functions
-
-```rust
-// Submit a new invoice to the protocol
-fn submit_invoice(
-    env: Env,
-    freelancer: Address,
-    payer: Address,
-    amount: i128,
-    due_date: u64,
-    discount_rate: u32,
-) -> u64  // returns invoice_id
-
-// Fund an invoice as a liquidity provider
-fn fund_invoice(
-    env: Env,
-    funder: Address,
-    invoice_id: u64,
-) -> Result<(), ContractError>
-
-// Mark an invoice as paid (called by payer or authorized oracle)
-fn mark_paid(
-    env: Env,
-    invoice_id: u64,
-) -> Result<(), ContractError>
-
-// Get invoice details
-fn get_invoice(env: Env, invoice_id: u64) -> Invoice
-
-// Claim funds after default (LP recourse mechanism)
-fn claim_default(
-    env: Env,
-    funder: Address,
-    invoice_id: u64,
-) -> Result<(), ContractError>
-```
-
----
-
-
-## Deployment Script
-This repository includes an automated deployment script that handles the full Soroban contract lifecycle.
-
-### Script Location
-```bash
-scripts/deploy.ts
-```
-### What it does
-The script fully automates:
-- Contract build using existing Makefile
-- WASM artifact detection
-- Deployment to Soroban testnet or mainnet
-- Contract verification using get_invoice(1)
-- Automatic update of:
-  - .env → CONTRACT_ID
-  - README.md → Contract ID field
-- Dry-run mode for safe testing
-- Structured error handling
-
-### Usage
-#### Deploy to Testnet
-```bash
-node scripts/deploy.ts --network=testnet
-```
-
-#### Deploy to Mainnet
-```bash
-node scripts/deploy.ts --network=mainnet
-```
-#### Dry Run (No Deployment)
-```bash
-node scripts/deploy.ts --dry-run
-```
-
-### Environment Setup
-Ensure .env contains:
-```env
-STELLAR_SECRET_KEY=your_secret_key
-```
-
-## Getting Started
+## Getting Started (Local Dev)
 
 ### Prerequisites
 
-- [Rust](https://rustup.rs/) (1.74+)
-- [Stellar CLI](https://developers.stellar.org/docs/tools/developer-tools/stellar-cli) (`stellar`)
-- A funded Stellar testnet wallet
+- [Node.js](https://nodejs.org/) 18+
+- [Rust](https://rustup.rs/) 1.74+
+- [Stellar CLI](https://developers.stellar.org/docs/tools/developer-tools/stellar-cli)
+- [Docker](https://docs.docker.com/get-docker/) (for E2E tests)
 
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/Nursca/Invoice-Liquidity-Network.git
-cd invoice-liquidity-network
-
-# Install Stellar CLI
-cargo install --locked stellar-cli --features opt
-
-# Configure for testnet
-stellar network add testnet \
-  --rpc-url https://soroban-testnet.stellar.org \
-  --network-passphrase "Test SDF Network ; September 2015"
-
-# Generate a testnet keypair and fund it
-stellar keys generate --global alice --network testnet
-stellar keys fund alice --network testnet
-```
-
-### Development Wallet Funding
-
-To simplify testing on Stellar Testnet, use the `fund-wallets.sh` script. This script automatically funds addresses with testnet XLM via Friendbot and mints mock USDC if an admin key is provided.
-
-#### Environment Setup
-
-Ensure the following environment variables are set:
-
-| Variable | Description |
-|----------|-------------|
-| `ADMIN_SECRET` | Secret key of the USDC issuer/admin (required for minting) |
-| `USDC_CONTRACT_ID` | Contract ID of the mock USDC on Testnet |
-
-#### Usage
-
-**1. Using command-line arguments:**
-```bash
-./scripts/fund-wallets.sh GADDRESS1... GADDRESS2...
-```
-
-**2. Using a batch file:**
-Create a `dev-wallets.txt` file in the root directory with one address per line, then run:
-```bash
-./scripts/fund-wallets.sh
-```
-
-**3. Via Makefile:**
-```bash
-make seed
-```
-
-The script includes automatic retries with exponential backoff to handle rate limits and will output a summary table of balances upon completion.
-
-### Build & Test
+### Clone with Submodules
 
 ```bash
-# Build the contract
-cd contracts/invoice_liquidity
-cargo build --target wasm32-unknown-unknown --release
+git clone --recurse-submodules https://github.com/Invoice-Liquidity-Network/Invoice-Liquidity-Network.git
+cd Invoice-Liquidity-Network
 
-# Run tests
-cargo test
-
-#### Regression Testing
-When fixing a bug, you must add a regression test to `contracts/invoice_liquidity/src/tests_regression.rs`.
-Please include a comment with `/// Regression for: [Issue/PR description]` to document the edge-case and prevent future regressions.
-
-# Deploy to testnet
-stellar contract deploy \
-  --wasm target/wasm32-unknown-unknown/release/invoice_liquidity.wasm \
-  --source alice \
-  --network testnet
+# Or if already cloned:
+git submodule update --init --recursive
 ```
 
-### Invoke the Contract
+### Start Local Environment
 
 ```bash
-# Submit an invoice
-stellar contract invoke \
-  --id $CONTRACT_ID \
-  --source alice \
-  --network testnet \
-  -- submit_invoice \
-  --freelancer GXXXXXXXXXX \
-  --payer GXXXXXXXXXX \
-  --amount 1000000000 \
-  --due_date 1735689600 \
-  --discount_rate 300
-
-# Fund an invoice (as LP)
-stellar contract invoke \
-  --id $CONTRACT_ID \
-  --source bob \
-  --network testnet \
-  -- fund_invoice \
-  --funder GXXXXXXXXXX \
-  --invoice_id 1
+docker-compose up -d          # Start local Stellar node
+npm run test:e2e              # Run E2E integration tests
 ```
-
----
-
-
----
-
-## Docs
-- Multi-token support guide: [docs/multi-token.md](./docs/multi-token.md)
-
-
-## Open Issues
-
-Browse open issues and apply to work on them:
-
-|                        Issue                          |                        Description                       |
-|-------------------------------------------------------|----------------------------------------------------------|
-| [#1 — Frontend invoice submission UI](../../issues/1) | Build a simple web UI for freelancers to submit invoices |
-| [#2 — Payer verification oracle](../../issues/2)      | Design an off-chain oracle that verifies invoice payment |
-| [#3 — Risk scoring model](../../issues/3)             | Propose a discount rate model based on payer reputation  |
-| [#4 — Multi-token support](../../issues/4)            | Extend beyond USDC to other Stellar assets               |
-| [#5 — SDK + npm package](../../issues/5)              | Write a JavaScript SDK wrapping the contract calls       |
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) to contribute.
-
----
-
-## Risk & Limitations
-
-ILN is experimental software. Key risks to understand:
-
-**Default risk** — If a payer doesn't pay, the LP absorbs the loss. ILN v1 does not have an insurance mechanism. This is being addressed in [Issue #3](../../issues/3).
-
-**Oracle trust** — `mark_paid()` currently relies on the payer calling the contract directly, or a trusted oracle. A decentralized verification layer is on the roadmap.
-
-**Sybil risk on payer_score** — `payer_score` can currently be manipulated by users creating fake invoice cycles between their own wallets. v2 should use time-weighted or volume-weighted scoring to resist self-dealing.
-
-**No credit scoring (yet)** — All invoices are treated equally. Discount rates are set by the freelancer. LPs should assess payer quality manually for now.
-
-**Smart contract risk** — This contract has not been audited. Do not use on mainnet with real funds until a formal audit is completed.
-
----
-
-## Governance
-
-The ILN protocol is governed by its community of token holders. To learn how governance works, how to earn voting power, and how to submit or vote on proposals, please read our [Governance Guide](./docs/governance.md).
-Note: The governance implementation (`iln_governance`) is currently a minimal skeleton. Full quorum and time-lock mechanisms are on the roadmap.
 
 ---
 
@@ -466,14 +163,28 @@ Note: The governance implementation (`iln_governance`) is currently a minimal sk
 
 - [x] Core Soroban contract (submit, fund, mark_paid)
 - [x] Testnet deployment
-- [ ] Frontend dApp for freelancers
-- [ ] LP dashboard with yield analytics
+- [x] Frontend dApp for freelancers
+- [x] LP dashboard with yield analytics
+- [x] TypeScript SDK + CLI
+- [x] Multi-token support (USDC, EURC, XLM)
 - [ ] Off-chain payer verification oracle
-- [ ] Payer reputation / credit scoring
 - [ ] Formal security audit
 - [ ] Mainnet deployment
-- [ ] Multi-asset support (beyond USDC)
 - [ ] DAO governance for protocol parameters
+
+---
+
+## Documentation
+
+| Doc | Description |
+|-----|-------------|
+| [`docs/index.md`](./docs/index.md) | Protocol overview |
+| [`docs/governance.md`](./docs/governance.md) | Governance guide |
+| [`docs/multi-token.md`](./docs/multi-token.md) | Multi-token support |
+| [`docs/notifications.md`](./docs/notifications.md) | Notification system |
+| [`docs/local-development.md`](./docs/local-development.md) | Local dev setup |
+| [`CONTRIBUTING.md`](./CONTRIBUTING.md) | How to contribute |
+| [`SECURITY.md`](./SECURITY.md) | Security policy |
 
 ---
 
@@ -491,15 +202,8 @@ MIT — see [LICENSE](./LICENSE)
 
 ---
 
-## Acknowledgements
+## Built on Stellar
 
 Built on [Stellar](https://stellar.org) and [Soroban](https://soroban.stellar.org).
 
 > This project is not affiliated with Stellar Development Foundation.
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) to contribute.
----
-
-## Notifications
-
-See [docs/notifications.md](docs/notifications.md) for details on the notification system, including user and developer setup, webhook payloads, and self-hosting instructions.
