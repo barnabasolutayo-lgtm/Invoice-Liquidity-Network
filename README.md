@@ -185,6 +185,7 @@ npm run test:e2e              # Run E2E integration tests
 | [`docs/governance.md`](./docs/governance.md) | Governance guide |
 | [`docs/multi-token.md`](./docs/multi-token.md) | Multi-token support |
 | [`docs/notifications.md`](./docs/notifications.md) | Notification system |
+| [`docs/api-collection.md`](./docs/api-collection.md) | Horizon and Soroban RPC API collection examples |
 | [`docs/local-development.md`](./docs/local-development.md) | Local dev setup |
 | [`docs/ci-cd.md`](./docs/ci-cd.md) | CI/CD and deployment environments |
 | [`CONTRIBUTING.md`](./CONTRIBUTING.md) | How to contribute |
