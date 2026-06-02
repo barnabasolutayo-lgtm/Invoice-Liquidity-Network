@@ -126,8 +126,8 @@ describe("ILNSdk", () => {
         contract: CONTRACT_ID,
         function: "submit_invoice",
         args: [
-          nativeToScVal(freelancer),
-          nativeToScVal(Keypair.random().publicKey()),
+          Address.fromString(freelancer).toScVal(),
+          Address.fromString(Keypair.random().publicKey()).toScVal(),
           nativeToScVal(10_000_000n, { type: "i128" }),
           nativeToScVal(1700000000, { type: "u64" }),
           nativeToScVal(300, { type: "u32" }),
@@ -138,8 +138,8 @@ describe("ILNSdk", () => {
         contract: CONTRACT_ID,
         function: "submit_invoice",
         args: [
-          nativeToScVal(freelancer),
-          nativeToScVal(Keypair.random().publicKey()),
+          Address.fromString(freelancer).toScVal(),
+          Address.fromString(Keypair.random().publicKey()).toScVal(),
           nativeToScVal(20_000_000n, { type: "i128" }),
           nativeToScVal(1700000200, { type: "u64" }),
           nativeToScVal(250, { type: "u32" }),
