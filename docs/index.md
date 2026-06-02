@@ -1,6 +1,7 @@
 # Documentation Index
 
 - [Analytics](analytics.md)
+- [LP Funding Tutorial](tutorials/lp-funding.md)
 - [Benchmarks](benchmarks.md)
 - [Governance](governance.md)
 - [Local Development](local-development.md)

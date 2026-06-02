@@ -181,6 +181,7 @@ npm run test:e2e              # Run E2E integration tests
 | Doc | Description |
 |-----|-------------|
 | [`docs/index.md`](./docs/index.md) | Protocol overview |
+| [`docs/tutorials/lp-funding.md`](./docs/tutorials/lp-funding.md) | LP funding tutorial |
 | [`docs/governance.md`](./docs/governance.md) | Governance guide |
 | [`docs/multi-token.md`](./docs/multi-token.md) | Multi-token support |
 | [`docs/notifications.md`](./docs/notifications.md) | Notification system |
