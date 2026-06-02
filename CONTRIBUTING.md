@@ -311,3 +311,51 @@ This project follows the [Contributor Covenant](https://www.contributor-covenant
 ---
 
 _Questions about the contribution process? Open a [Discussion](../../discussions) and we'll help._
+
+
+## Dead Code Detection
+
+This repo runs [`knip`](https://knip.dev/) to surface unused files, exports,
+dependencies, and binaries across the monorepo. The check is wired into CI
+as an **advisory** workflow (`.github/workflows/knip.yml`) — it reports
+findings but does not block merges, so work-in-progress branches with
+temporary scaffolding are not penalised.
+
+### Running it locally
+
+```bash
+pnpm dead-code:check
+```
+
+This runs `knip` against the configuration in `knip.json`. The report has
+several sections:
+
+| Section                | Meaning                                                                |
+|------------------------|------------------------------------------------------------------------|
+| Unused files           | A file is on disk but no entry point's import graph reaches it.        |
+| Unused dependencies    | A dependency in `package.json` is never imported by source code.       |
+| Unused devDependencies | Same, for devDependencies.                                             |
+| Unlisted dependencies  | An import statement references a package not declared in `package.json`. |
+| Unlisted binaries      | A CI workflow or script invokes a binary not declared.                 |
+| Unused exports         | A named export is never imported anywhere in the workspace.            |
+| Unused exported types  | A named type/interface export is never used as a type elsewhere.       |
+
+### When to fix vs. when to suppress
+
+A finding can fall into one of three buckets:
+
+1. **Genuine dead code** — delete it.
+2. **Public API** that is consumed by downstream packages outside this repo
+   (e.g. SDK consumers). Add it to `knip.json` under the relevant
+   workspace's `entry` array so knip treats it as a root.
+3. **Config-driven tool** (commitlint, husky, etc.) that knip cannot trace.
+   Add the package name to `ignoreDependencies` in `knip.json`.
+
+Please prefer **option 1** when possible. If you suppress a finding via
+`knip.json`, include a comment in your PR explaining why.
+
+### Updating the config
+
+`knip.json` lives at the repo root. Each workspace package has its own
+section under `workspaces`. The schema is documented at
+[knip.dev/reference/configuration](https://knip.dev/reference/configuration).

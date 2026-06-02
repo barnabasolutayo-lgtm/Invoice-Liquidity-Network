@@ -5,14 +5,16 @@
     "test": "turbo run test",
     "test:coverage": "turbo run test:coverage",
     "build": "turbo run build",
-    "generate:types": "ts-node --esm scripts/generate-types.ts"
+    "generate:types": "ts-node --esm scripts/generate-types.ts",
+    "dead-code:check": "knip"
   },
   "devDependencies": {
-    "turbo": "^2.5.4",
     "@commitlint/cli": "^17.6.0",
     "@commitlint/config-conventional": "^17.6.0",
     "husky": "^8.0.0",
+    "knip": "^6.15.0",
     "ts-node": "^10.9.2",
+    "turbo": "^2.5.4",
     "typescript": "^5.9.3"
   },
   "engines": {
