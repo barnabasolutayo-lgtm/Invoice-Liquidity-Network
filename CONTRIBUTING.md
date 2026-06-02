@@ -157,18 +157,22 @@ git merge upstream/main
 
 ### Commit messages
 
-Use the following format:
+We follow the Conventional Commits specification. Use the format:
 
 ```
-type: short description (max 72 chars)
+type(scope?): short description
 
 Optional longer explanation of why the change was made,
 not just what was changed.
 ```
 
-Types: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`
+Allowed types: `feat`, `fix`, `docs`, `chore`, `test`, `refactor`, `perf`, `ci`, `design`, `build`
 
-Example: `feat: add claim_default function for LP recourse`
+Commit messages are validated automatically:
+- Local: Husky runs `commitlint` on commit messages via the `commit-msg` hook.
+- CI: Pull request titles are validated by a GitHub Action. The PR title is used as the squash commit message, so it must follow the same format.
+
+Example: `ci: add commitlint for conventional commit enforcement`
 
 ---
 
