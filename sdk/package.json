@@ -32,7 +32,8 @@
   },
   "dependencies": {
     "@stellar/freighter-api": "^6.0.1",
-    "@stellar/stellar-sdk": "^15.0.1"
+    "@stellar/stellar-sdk": "^15.0.1",
+    "debug": "^5.1.0"
   },
   "devDependencies": {
     "@types/node": "^24.7.2",

@@ -147,6 +147,16 @@ npm install
 npm test
 ```
 
+## Debug Logging
+
+Enable SDK debug logging with the `ILN_DEBUG` environment variable:
+
+```bash
+ILN_DEBUG=1 node ./dist/index.js
+```
+
+When enabled, the SDK emits namespaced debug output under `iln:sdk:invoice` using `console.debug`.
+
 ## Integration tests (testnet)
 
 The integration suite runs real transactions against the deployed Stellar testnet contract.
