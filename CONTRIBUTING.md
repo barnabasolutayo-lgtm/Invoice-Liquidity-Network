@@ -295,6 +295,38 @@ Please include:
 
 We will acknowledge your report within 48 hours and work with you on a responsible disclosure timeline.
 
+## CODEOWNERS
+
+The [`.github/CODEOWNERS`](./.github/CODEOWNERS) file maps directory and file patterns to the GitHub teams responsible for reviewing changes in that area. When a PR touches a path covered by CODEOWNERS, GitHub automatically requests a review from the listed team, and their approval is required before the PR can be merged.
+
+### Owner map
+
+| Path | Owner team | Responsibility |
+|------|-----------|----------------|
+| `sdk/` | `@Invoice-Liquidity-Network/sdk-team` | TypeScript SDK |
+| `docs/` | `@Invoice-Liquidity-Network/docs-lead` | Protocol documentation |
+| `scripts/` | `@Invoice-Liquidity-Network/devops` | Deployment & dev scripts |
+| `.github/workflows/` | `@Invoice-Liquidity-Network/devops` | CI/CD pipelines |
+| `rfcs/` | `@Invoice-Liquidity-Network/maintainers` | RFCs and protocol proposals |
+| `SECURITY.md` | `@Invoice-Liquidity-Network/security-lead` | Security policy |
+| `*` (default) | `@Invoice-Liquidity-Network/maintainers` | Everything else |
+
+### Requiring CODEOWNER approval (branch protection)
+
+To enforce CODEOWNERS on the `main` branch, a repository admin must enable the following in **Settings → Branches → Branch protection rules** for `main`:
+
+- **Require a pull request before merging** — enabled
+- **Require approvals** — at least `1`
+- **Require review from Code Owners** — enabled
+
+With this setting active, GitHub will not allow a PR to be merged until an owner listed in CODEOWNERS for every changed file has approved it.
+
+### Adding or changing owners
+
+Edit `.github/CODEOWNERS` directly. Rules are evaluated top to bottom and the **last matching pattern wins**, so more specific rules should appear after the default catch-all. After merging the change, the new owners take effect on all subsequent PRs.
+
+---
+
 ## Getting help
 
 - **GitHub Discussions** — for questions, ideas, and general conversation: [Discussions tab](../../discussions)
