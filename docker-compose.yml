@@ -7,3 +7,53 @@ services:
     ports:
       - "8000:8000"
       - "11626:11626"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  indexer:
+    build:
+      context: ./indexer
+    depends_on:
+      stellar:
+        condition: service_healthy
+    environment:
+      CONTRACT_ID: ${CONTRACT_ID:-}
+      NETWORK_PASSPHRASE: "Standalone Network ; February 2017"
+      RPC_URL: http://stellar:8000/rpc
+      DB_PATH: /data/indexer.db
+      POLL_INTERVAL_MS: ${POLL_INTERVAL_MS:-5000}
+      PORT: 3001
+      START_LEDGER: ${START_LEDGER:-0}
+    volumes:
+      - indexer_data:/data
+    ports:
+      - "3001:3001"
+
+  notifications:
+    build:
+      context: ./notifications
+    depends_on:
+      stellar:
+        condition: service_healthy
+    environment:
+      NOTIFICATIONS_DB_PATH: /data/notifications.sqlite
+      NOTIFICATIONS_RPC_URL: http://stellar:8000/rpc
+      NOTIFICATIONS_CONTRACT_ID: ${CONTRACT_ID:-}
+      NOTIFICATIONS_NETWORK_PASSPHRASE: "Standalone Network ; February 2017"
+      NOTIFICATIONS_POLL_INTERVAL_MS: ${NOTIFICATIONS_POLL_INTERVAL_MS:-30000}
+      NOTIFICATIONS_START_LEDGER: ${START_LEDGER:-0}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-no-reply@localhost}
+      DUE_WARNING_HOURS: ${DUE_WARNING_HOURS:-48}
+      PORT: 4001
+    volumes:
+      - notifications_data:/data
+    ports:
+      - "4001:4001"
+
+volumes:
+  indexer_data:
+  notifications_data:
