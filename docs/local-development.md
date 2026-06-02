@@ -1,5 +1,5 @@
 # Local Development Environment
-This guide explains how to quickly set up a local Soroban testing environment for the Invoice Liquidity Network project. The Hardhat-style test environment allows you to develop, build, and test locally in under 5 minutes.
+This guide explains how to quickly set up a local [Soroban](glossary.md#soroban) testing environment for the Invoice Liquidity Network project. The Hardhat-style test environment allows you to develop, build, and test locally in under 5 minutes.
 ## Prerequisites
 Before starting, ensure you have the following installed on your system:
 - **Docker**: Used to run the isolated local Stellar node (`stellar-local`).
@@ -28,7 +28,7 @@ This command spins up the official `stellar/quickstart` Docker image to act as y
 ```bash
 make seed
 ```
-Creates generic end-to-end testing identities inside test wallets: **freelancer**, **payer**, and **funder**. It wraps the native network asset (XLM) to act as a **Mock USDC Token** locally. It automatically invokes the contract initialization sequence and submits 3 distinct sample invoices simulating real-world states for testing frontend applications cleanly.
+Creates generic end-to-end testing identities inside test wallets: **[freelancer](glossary.md#freelancer)**, **[payer](glossary.md#payer)**, and **funder**. It wraps the native network asset (XLM) to act as a **Mock USDC Token** locally. It automatically invokes the contract initialization sequence and submits 3 distinct sample invoices simulating real-world states for testing frontend applications cleanly.
 ### 5. Run Contracts Tests
 ```bash
 make test

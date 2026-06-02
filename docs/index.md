@@ -1,5 +1,5 @@
 # Documentation Index
-
+- [Glossary](glossary.md)
 - [Analytics](analytics.md)
 - [LP Funding Tutorial](tutorials/lp-funding.md)
 - [Benchmarks](benchmarks.md)
