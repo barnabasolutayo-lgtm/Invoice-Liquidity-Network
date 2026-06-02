@@ -1,5 +1,5 @@
 {
-  "name": "@invoice-liquidity/sdk",
+  "name": "@iln/sdk",
   "version": "0.1.0",
   "description": "TypeScript SDK for the Invoice Liquidity Network Soroban contract.",
   "license": "MIT",

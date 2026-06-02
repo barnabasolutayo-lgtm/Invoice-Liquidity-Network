@@ -121,6 +121,26 @@ export class ILNSdk {
     return this.extractInvoiceResult(simulation);
   }
 
+  async getInvoiceCount(): Promise<bigint> {
+    const transaction = this.buildReadTransaction("get_invoice_count", []);
+    const simulation = await this.server.simulateTransaction(transaction);
+    const result = this.extractSimulationRetval(simulation, "get_invoice_count");
+    return this.toBigInt(this.unwrapContractResult(scValToNative(result), "get_invoice_count"));
+  }
+
+  async getReputation(address: string): Promise<number> {
+    const transaction = this.buildReadTransaction("get_reputation", [
+      this.toAddress(address),
+    ]);
+    const simulation = await this.server.simulateTransaction(transaction);
+    const result = this.extractSimulationRetval(simulation, "get_reputation");
+    return this.toNumberValue(
+      this.unwrapContractResult(scValToNative(result), "get_reputation"),
+      "reputation"
+    );
+  }
+
+
   private buildReadTransaction(method: string, args: xdr.ScVal[]): BuiltTransaction {
     return new TransactionBuilder(new Account(READ_ACCOUNT, "0"), {
       fee: BASE_FEE,
