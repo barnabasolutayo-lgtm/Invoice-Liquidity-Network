@@ -2,6 +2,8 @@
 
 Typed JavaScript and TypeScript SDK for the Invoice Liquidity Network Soroban contract on Stellar.
 
+By participating in this project, you agree to abide by our [Code of Conduct](../CODE_OF_CONDUCT.md).
+
 ## Install
 
 ```bash

@@ -306,7 +306,9 @@ If you are new to Soroban development, the [Stellar Developer Docs](https://deve
 
 ## Code of Conduct
 
-This project follows the [Contributor Covenant](https://www.contributor-covenant.org/version/2/1/code_of_conduct/) Code of Conduct. By participating, you agree to uphold it. Maintainers reserve the right to remove anyone who violates these standards.
+This project follows the [Contributor Covenant](./CODE_OF_CONDUCT.md) Code of Conduct. By participating, you agree to uphold it. Maintainers reserve the right to remove anyone who violates these standards.
+
+For the full text, see [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
 
 ---
 

@@ -199,6 +199,7 @@ npm run test:e2e              # Run E2E integration tests
 | [`docs/local-development.md`](./docs/local-development.md) | Local dev setup |
 | [`docs/ci-cd.md`](./docs/ci-cd.md) | CI/CD and deployment environments |
 | [`CONTRIBUTING.md`](./CONTRIBUTING.md) | How to contribute |
+| [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md) | Community standards and guidelines |
 | [`SECURITY.md`](./SECURITY.md) | Security policy |
 
 ---
