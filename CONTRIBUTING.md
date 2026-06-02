@@ -362,3 +362,54 @@ Please prefer **option 1** when possible. If you suppress a finding via
 `knip.json` lives at the repo root. Each workspace package has its own
 section under `workspaces`. The schema is documented at
 [knip.dev/reference/configuration](https://knip.dev/reference/configuration).
+
+---
+
+## Changeset Workflow
+
+ILN uses [Changesets](https://github.com/changesets/changesets) to manage versioning and changelogs for the `@iln/sdk` and `@iln/shared` packages. Every PR that changes a package's public API must include a changeset.
+
+### When to add a changeset
+
+Add a changeset when your PR modifies any file under `packages/` or `sdk/`. You do **not** need a changeset for:
+
+- Documentation-only changes
+- CI/CD configuration changes
+- Test-only changes that do not affect public API behaviour
+- Changes to non-package files (scripts, indexer, notifications)
+
+### How to add a changeset
+
+1. From the repo root, run:
+
+```bash
+pnpm changeset
+```
+
+2. Follow the interactive prompts:
+   - Select the packages affected (`@iln/sdk`, `@iln/shared`, or both)
+   - Choose the semver bump type:
+     - `patch` — bug fixes, non-breaking internal changes
+     - `minor` — new features, non-breaking additions to public API
+     - `major` — breaking changes to public API
+   - Write a short summary of the change (this becomes the changelog entry)
+
+3. Commit the generated `.changeset/*.md` file alongside your code changes:
+
+```bash
+git add .changeset/
+git commit -m "chore: add changeset"
+```
+
+### What happens after merge
+
+When a PR with changesets is merged into `main`, the Changesets GitHub Action automatically opens a **"Version Packages"** PR that:
+
+- Bumps the version in each affected `package.json`
+- Updates `CHANGELOG.md` for each package with the changeset summaries
+
+Merging the Version Packages PR triggers a publish to npm.
+
+### CI enforcement
+
+The `changeset-check` CI job runs on every PR that touches `packages/**` or `sdk/**`. It will fail if no changeset file is present. If your PR does not require a changeset (documentation, tests, CI only), the check is skipped automatically.
