@@ -128,6 +128,8 @@ getInvoice(invoiceId: bigint): Promise<Invoice>;
 
 ## Invoice type
 
+The canonical domain definitions live in `@iln/shared`; the SDK re-exports them for compatibility.
+
 ```ts
 type InvoiceStatus = "Pending" | "Funded" | "Paid" | "Defaulted";
 
