@@ -1,6 +1,8 @@
 // sdk/index.ts
 
 import { mapError } from './errors'
+export { setLocale } from './errors'
+export type { ErrorMessages } from './errors'
 
 export async function submitInvoice(invoke: any, params: {
   freelancer: string
@@ -78,3 +80,5 @@ export async function getInvoice(invoke: any, params: {
     throw mapError(err)
   }
 }
+
+export { checkCompatibility, SDK_VERSION, MIN_CONTRACT_VERSION } from './src/compatibility'
