@@ -1,5 +1,7 @@
+import { createHmac } from "crypto";
 import { Resend } from "resend";
 import { CONFIG } from "./config";
+import { createWebhookDeliveryLog, updateWebhookDeliveryLog } from "./db";
 import type { NotificationPayload, Subscription } from "./types";
 
 const resend = new Resend(CONFIG.resendApiKey);
@@ -10,7 +12,7 @@ function delay(ms: number): Promise<void> {
 
 export async function sendEmail(
   subscription: Subscription,
-  payload: NotificationPayload
+  payload: NotificationPayload,
 ): Promise<void> {
   await resend.emails.send({
     from: CONFIG.resendFromEmail,
@@ -23,47 +25,113 @@ export async function sendEmail(
   });
 }
 
+function getWebhookSignature(secret: string, body: string): string {
+  return createHmac("sha256", secret).update(body).digest("hex");
+}
+
 export async function sendWebhook(
   subscription: Subscription,
   payload: NotificationPayload,
-  attempt = 1
+  attempt = 1,
+  logId?: number,
 ): Promise<void> {
+  const body = JSON.stringify({
+    trigger: payload.trigger,
+    actor: payload.actor,
+    invoice: payload.invoice,
+    subject: payload.subject,
+    message: payload.message,
+    eventId: payload.eventId ?? null,
+    eventType: payload.eventType ?? null,
+  });
+
+  const id =
+    logId ??
+    createWebhookDeliveryLog({
+      subscription_id: subscription.id,
+      event_id: payload.eventId ?? null,
+      trigger: payload.trigger,
+      invoice_id: payload.invoice.id,
+      recipient_address: payload.recipientAddress,
+      status: "pending",
+      attempts: 0,
+      response_status: null,
+      error: null,
+    }).id;
+
   let response;
+  let errorMessage: string | null = null;
+
   try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "X-ILN-Trigger": payload.trigger,
+      "X-ILN-Recipient": payload.recipientAddress,
+    };
+
+    if (subscription.webhook_secret) {
+      headers["X-ILN-Signature"] = `sha256=${getWebhookSignature(
+        subscription.webhook_secret,
+        body,
+      )}`;
+    }
+
+    if (payload.eventId) {
+      headers["X-ILN-Event-Id"] = payload.eventId;
+    }
+
     response = await fetch(subscription.destination, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        trigger: payload.trigger,
-        actor: payload.actor,
-        invoice: payload.invoice,
-        subject: payload.subject,
-        message: payload.message,
-      }),
+      headers,
+      body,
+    });
+
+    await updateWebhookDeliveryLog(id, {
+      attempts: attempt,
+      response_status: response.status,
     });
 
     if (response.ok) {
+      await updateWebhookDeliveryLog(id, {
+        status: "success",
+      });
       return;
     }
-  } catch (error) {
-    // Network errors will be caught here and retried
-    console.error(`[delivery] Webhook fetch error on attempt ${attempt}:`, error);
+
+    errorMessage = `HTTP ${response.status}`;
+  } catch (error: any) {
+    errorMessage = error?.message ?? "Network Error";
+    console.error(
+      `[delivery] Webhook fetch error on attempt ${attempt}:`,
+      error,
+    );
   }
 
   if (attempt >= CONFIG.maxWebhookRetry) {
-    throw new Error(`Webhook failed after ${attempt} attempts: ${response?.status || 'Network Error'}`);
+    await updateWebhookDeliveryLog(id, {
+      status: "failed",
+      attempts: attempt,
+      error: errorMessage,
+    });
+    throw new Error(
+      `Webhook failed after ${attempt} attempts: ${response?.status || errorMessage}`,
+    );
   }
+
+  await updateWebhookDeliveryLog(id, {
+    attempts: attempt,
+    response_status: response?.status ?? null,
+    error: errorMessage,
+  });
 
   const backoff = CONFIG.webhookBackoffBaseMs * 2 ** (attempt - 1);
   await delay(backoff);
-  await sendWebhook(subscription, payload, attempt + 1);
+  await sendWebhook(subscription, payload, attempt + 1, id);
 }
 
 export async function deliverNotification(
   subscription: Subscription,
-  payload: NotificationPayload
+  payload: NotificationPayload,
 ): Promise<void> {
   if (subscription.channel === "email") {
     await sendEmail(subscription, payload);
