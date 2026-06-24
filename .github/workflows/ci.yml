@@ -9,6 +9,12 @@ permissions:
   pull-requests: write
   issues: write
 
+# Fail fast: cancel an in-progress run when new commits are pushed to the same
+# ref (e.g. a PR branch), so only the latest commit consumes CI minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   pnpm-cache:
     uses: ./.github/workflows/reusable-cache-pnpm.yml
@@ -363,3 +369,144 @@ jobs:
       - name: Report skipped integration tests
         run: |
           echo "::warning::Horizon testnet was unhealthy; SDK testnet integration tests were skipped."
+
+  # ===========================================================================
+  # Core JS/TS quality gate — Issue #252
+  #
+  # Models the dependency graph required by the issue:
+  #   install ──► lint ──┐
+  #           └► type-check ──► test ──► build
+  # lint and type-check run in parallel after install; test waits for both;
+  # build waits for test. Each job reuses the pnpm store cache and shares a
+  # turbo cache so unchanged packages are not rebuilt.
+  # ===========================================================================
+  core-install:
+    name: Core · install
+    needs: pnpm-cache
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup pnpm with store cache
+        uses: ./.github/actions/setup-pnpm
+
+  core-lint:
+    name: Core · lint
+    needs: core-install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup pnpm with store cache
+        uses: ./.github/actions/setup-pnpm
+      - name: Restore turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-lint-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-turbo-lint-
+      - name: Lint
+        run: pnpm lint -- --cache-dir=.turbo
+
+  core-type-check:
+    name: Core · type-check
+    needs: core-install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup pnpm with store cache
+        uses: ./.github/actions/setup-pnpm
+      - name: Restore turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-typecheck-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-turbo-typecheck-
+      - name: Type-check
+        run: pnpm type-check -- --cache-dir=.turbo
+
+  core-test:
+    name: Core · test
+    needs: [core-lint, core-type-check]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup pnpm with store cache
+        uses: ./.github/actions/setup-pnpm
+      - name: Restore turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-test-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-turbo-test-
+      - name: Test
+        run: pnpm test -- --cache-dir=.turbo
+
+  core-build:
+    name: Core · build
+    needs: core-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup pnpm with store cache
+        uses: ./.github/actions/setup-pnpm
+      - name: Restore turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-build-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-turbo-build-
+      - name: Build
+        run: pnpm build -- --cache-dir=.turbo
+
+  core-summary:
+    name: Core · PR summary
+    needs: [core-install, core-lint, core-type-check, core-test, core-build]
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post results summary to PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const jobs = {
+              install: '${{ needs.core-install.result }}',
+              lint: '${{ needs.core-lint.result }}',
+              'type-check': '${{ needs.core-type-check.result }}',
+              test: '${{ needs.core-test.result }}',
+              build: '${{ needs.core-build.result }}',
+            };
+            const icon = (r) =>
+              r === 'success' ? '✅' : r === 'skipped' ? '⏭️' : '❌';
+            const rows = Object.entries(jobs)
+              .map(([name, result]) => `| ${name} | ${icon(result)} ${result} |`)
+              .join('\n');
+            const body = [
+              '### 🧪 Core CI summary',
+              '',
+              '| Stage | Result |',
+              '| --- | --- |',
+              rows,
+            ].join('\n');
+
+            const marker = '<!-- core-ci-summary -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body.includes(marker));
+            const payload = `${marker}\n${body}`;
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: payload,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: payload,
+              });
+            }
