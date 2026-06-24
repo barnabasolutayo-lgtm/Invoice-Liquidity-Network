@@ -9,8 +9,12 @@ export type { ILNProviderProps } from './context';
 
 // Hooks
 export {
+  useILN,
   useInvoice,
+  useInvoices,
   useInvoiceList,
+  useSubmitInvoice,
+  useFundInvoice,
   useReputationScore,
   useLPPortfolio,
   useContractStats,
@@ -19,9 +23,16 @@ export {
 } from './hooks';
 
 export type {
+  UseILNResult,
   UseInvoiceResult,
+  UseInvoicesResult,
+  UseInvoicesOptions,
   UseInvoiceListResult,
   InvoiceRole,
+  UseSubmitInvoiceResult,
+  SubmitInvoiceParams,
+  UseFundInvoiceResult,
+  FundInvoiceParams,
   UseReputationScoreResult,
   UseLPPortfolioResult,
   UseContractStatsResult,

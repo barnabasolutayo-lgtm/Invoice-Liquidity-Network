@@ -1,8 +1,20 @@
+export { useILN } from './useILN';
+export type { UseILNResult } from './useILN';
+
 export { useInvoice } from './useInvoice';
 export type { UseInvoiceResult } from './useInvoice';
 
+export { useInvoices } from './useInvoices';
+export type { UseInvoicesResult, UseInvoicesOptions } from './useInvoices';
+
 export { useInvoiceList } from './useInvoiceList';
 export type { UseInvoiceListResult, InvoiceRole } from './useInvoiceList';
+
+export { useSubmitInvoice } from './useSubmitInvoice';
+export type { UseSubmitInvoiceResult, SubmitInvoiceParams } from './useSubmitInvoice';
+
+export { useFundInvoice } from './useFundInvoice';
+export type { UseFundInvoiceResult, FundInvoiceParams } from './useFundInvoice';
 
 export { useReputationScore } from './useReputationScore';
 export type { UseReputationScoreResult } from './useReputationScore';

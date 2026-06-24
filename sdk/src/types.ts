@@ -1,5 +1,3 @@
-import type { InvoiceState } from "@iln/shared";
-
 export type {
   ContractEvent,
   ContractStats,
@@ -12,7 +10,6 @@ export type {
   Token,
 } from "@iln/shared";
 
-export type InvoiceStatus = InvoiceState;
 
 export interface SubmitInvoiceParams {
   freelancer: string;

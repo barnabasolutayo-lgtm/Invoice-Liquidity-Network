@@ -3,8 +3,12 @@ import * as exports from './index';
 
 describe('package exports', () => {
   it('exports all hooks', () => {
+    expect(exports.useILN).toBeDefined();
     expect(exports.useInvoice).toBeDefined();
+    expect(exports.useInvoices).toBeDefined();
     expect(exports.useInvoiceList).toBeDefined();
+    expect(exports.useSubmitInvoice).toBeDefined();
+    expect(exports.useFundInvoice).toBeDefined();
     expect(exports.useReputationScore).toBeDefined();
     expect(exports.useLPPortfolio).toBeDefined();
     expect(exports.useContractStats).toBeDefined();

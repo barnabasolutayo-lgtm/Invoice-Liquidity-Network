@@ -1,5 +1,6 @@
 import express, { Request, Response } from "express";
 import {
+  getDb,
   getFreelancerStats,
   getInvoiceById,
   getInvoiceHistory,
@@ -8,6 +9,7 @@ import {
   getTopLPs,
   queryInvoices,
   queryInvoicesPaginated,
+  getCursorUpdatedAt,
 } from "./db";
 import { cacheGet, cacheSet } from "./cache";
 
@@ -20,9 +22,27 @@ export function createApp(): express.Application {
   const app = express();
   app.use(express.json());
 
+  const startTime = Date.now();
+
   // ── GET /health ────────────────────────────────────────────────────────────
   app.get("/health", (_req: Request, res: Response) => {
-    res.json({ status: "ok" });
+    let dbStatus: "ok" | "error" = "ok";
+    try {
+      getDb().prepare("SELECT 1").get();
+    } catch {
+      dbStatus = "error";
+    }
+
+    const lastSyncMs = getCursorUpdatedAt();
+    const uptime = Date.now() - startTime;
+    const status = dbStatus === "ok" ? "ok" : "degraded";
+
+    res.json({
+      status,
+      db: dbStatus,
+      lastSync: lastSyncMs !== null ? new Date(lastSyncMs).toISOString() : null,
+      uptime,
+    });
   });
 
   // ── GET /invoices ──────────────────────────────────────────────────────────

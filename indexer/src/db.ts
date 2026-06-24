@@ -430,6 +430,14 @@ export function getCursorLedger(): number {
   return row?.last_ledger ?? 0;
 }
 
+/** Return the Unix ms timestamp of the last processed ledger, or null if never synced. */
+export function getCursorUpdatedAt(): number | null {
+  const row = getDb()
+    .prepare("SELECT updated_at FROM cursor WHERE id = 1")
+    .get() as { updated_at: number } | undefined;
+  return row?.updated_at ?? null;
+}
+
 /** Persist the last processed ledger sequence. */
 export function setCursorLedger(ledger: number): void {
   getDb()

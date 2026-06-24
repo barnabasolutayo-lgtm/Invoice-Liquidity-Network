@@ -2,7 +2,7 @@ import type { Express } from "express";
 import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/api";
-import { createDb, setDb, upsertInvoice } from "../src/db";
+import { createDb, setDb, upsertInvoice, setCursorLedger } from "../src/db";
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -45,10 +45,36 @@ beforeEach(() => {
 // ── /health ───────────────────────────────────────────────────────────────────
 
 describe("GET /health", () => {
-  it("returns 200 with status ok", async () => {
+  it("returns 200 with all required fields", async () => {
     const res = await request(app).get("/health");
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ status: "ok" });
+    expect(res.body).toHaveProperty("status");
+    expect(res.body).toHaveProperty("db");
+    expect(res.body).toHaveProperty("lastSync");
+    expect(res.body).toHaveProperty("uptime");
+  });
+
+  it("reports status ok and db ok when database is healthy", async () => {
+    const res = await request(app).get("/health");
+    expect(res.body.status).toBe("ok");
+    expect(res.body.db).toBe("ok");
+  });
+
+  it("returns null lastSync when the indexer has never synced", async () => {
+    const res = await request(app).get("/health");
+    expect(res.body.lastSync).toBeNull();
+  });
+
+  it("returns an ISO 8601 lastSync timestamp after a ledger is processed", async () => {
+    setCursorLedger(12345);
+    const res = await request(app).get("/health");
+    expect(res.body.lastSync).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+  });
+
+  it("returns a non-negative uptime in milliseconds", async () => {
+    const res = await request(app).get("/health");
+    expect(typeof res.body.uptime).toBe("number");
+    expect(res.body.uptime).toBeGreaterThanOrEqual(0);
   });
 });
 

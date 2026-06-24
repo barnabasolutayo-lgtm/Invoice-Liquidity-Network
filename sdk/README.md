@@ -1,13 +1,33 @@
-# `@invoice-liquidity/sdk`
+# `@iln/sdk`
+
+[![npm version](https://img.shields.io/npm/v/@iln/sdk)](https://www.npmjs.com/package/@iln/sdk)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI](https://github.com/Invoice-Liquidity-Network/Invoice-Liquidity-Network/actions/workflows/ci.yml/badge.svg)](https://github.com/Invoice-Liquidity-Network/Invoice-Liquidity-Network/actions/workflows/ci.yml)
 
 Typed JavaScript and TypeScript SDK for the Invoice Liquidity Network Soroban contract on Stellar.
 
 By participating in this project, you agree to abide by our [Code of Conduct](../CODE_OF_CONDUCT.md).
 
+## Quick Start
+
+```bash
+npm install @iln/sdk
+```
+
+```ts
+import { ILNSdk, ILN_TESTNET, createFreighterSigner } from "@iln/sdk";
+
+const sdk = new ILNSdk({ ...ILN_TESTNET, signer: createFreighterSigner() });
+const invoiceId = await sdk.submitInvoice({ freelancer: "G...", payer: "G...", amount: 25_000_000n, dueDate: Math.floor(Date.now() / 1000) + 604800, discountRate: 300 });
+await sdk.fundInvoice({ funder: "G...", invoiceId });
+const invoice = await sdk.getInvoice(invoiceId);
+console.log(invoice.status); // "Funded"
+```
+
 ## Install
 
 ```bash
-npm install @invoice-liquidity/sdk
+npm install @iln/sdk
 ```
 
 ## Quickstart
@@ -131,7 +151,22 @@ getInvoice(invoiceId: bigint): Promise<Invoice>;
 The canonical domain definitions live in `@iln/shared`; the SDK re-exports them for compatibility.
 
 ```ts
-type InvoiceStatus = "Pending" | "Funded" | "Paid" | "Defaulted";
+import { InvoiceStatus, isPending, isFunded, isTerminal, InvoiceStatusColor } from "@iln/sdk";
+
+// Enum for full type safety and autocomplete
+InvoiceStatus.Pending   // "Pending"
+InvoiceStatus.Funded    // "Funded"
+InvoiceStatus.Paid      // "Paid"
+InvoiceStatus.Defaulted // "Defaulted"
+InvoiceStatus.Disputed  // "Disputed"
+
+// Helper predicates
+isPending(invoice.status)   // true / false
+isFunded(invoice.status)
+isTerminal(invoice.status)  // true for Paid | Defaulted | Disputed
+
+// UI color mapping
+InvoiceStatusColor[invoice.status] // e.g. "#10B981"
 
 interface Invoice {
   id: bigint;
