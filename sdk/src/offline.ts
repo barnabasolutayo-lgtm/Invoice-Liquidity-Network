@@ -256,6 +256,16 @@ export class OfflineManager {
   }
 
   /**
+   * Export queue data for persistence or debugging.
+   */
+  exportData(): { queue: OfflineQueueItem[]; state: OfflineState } {
+    return {
+      queue: this.getQueue(),
+      state: this.getState(),
+    };
+  }
+
+  /**
    * Cleanup resources.
    */
   destroy(): void {
