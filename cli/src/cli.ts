@@ -21,6 +21,7 @@ import {
   formatProtocolConfig,
 } from "./format";
 import { registerInspectCommand } from "./inspect";
+import { registerCompletionCommand } from "./completion";
 import { createKeypairFileSigner } from "./signer";
 import { TestnetAccountSeeder } from "./dev-seed";
 import type { Ui } from "./format";
@@ -65,7 +66,9 @@ export async function runCli(
     .option("--json", "output machine-readable JSON (applies to: status, list)")
     .option("--quiet", "suppress informational messages; show only command output")
     .hook("preAction", (_thisCommand, actionCommand) => {
-      const isConfiglessXdrCommand =
+      registerCompletionCommand(program);
+
+  const isConfiglessXdrCommand =
         actionCommand.name() === "decode" && actionCommand.parent?.name() === "xdr";
       if (
         isConfiglessXdrCommand ||
@@ -286,6 +289,35 @@ export async function runCli(
       }
 
       stdout.write(formatDecodedScVal(decodeScValXdr(base64)));
+    });
+
+  // Dashboard command
+  program
+    .command("dashboard")
+    .description("Launch the real-time dashboard for monitoring invoice activity.")
+    .option("--refresh <ms>", "Refresh interval in milliseconds", "5000")
+    .option("--export <file>", "Export dashboard data to JSON file")
+    .action(async (options: { refresh: string; export?: string }) => {
+      const config = load();
+      const client = createClient(config);
+      const { runDashboard } = await import("./dashboard");
+
+      if (options.export) {
+        const { Dashboard } = await import("./dashboard");
+        const dashboard = new Dashboard(client, config, {
+          refreshIntervalMs: parseInt(options.refresh, 10),
+        });
+        // Quick refresh and export
+        await dashboard["refresh"]();
+        const data = dashboard.exportData();
+        const fs = await import("fs");
+        fs.writeFileSync(options.export, JSON.stringify(data, null, 2));
+        ui.success(`Dashboard data exported to ${options.export}`);
+      } else {
+        await runDashboard(client, config, {
+          refreshIntervalMs: parseInt(options.refresh, 10),
+        });
+      }
     });
 
   // Development commands

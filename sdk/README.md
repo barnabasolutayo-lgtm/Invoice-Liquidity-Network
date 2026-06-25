@@ -215,6 +215,32 @@ const subs = await notifications.listSubscriptions("G...");
 await notifications.unsubscribe(emailSub.id);
 ```
 
+## Analytics (opt-in)
+
+The SDK can emit anonymous, privacy-preserving usage events to help the maintainers understand which methods are most used and where errors occur most frequently.
+
+**Off by default.** Enable with the `ILN_ANALYTICS` environment variable:
+
+```bash
+ILN_ANALYTICS=1 node your-app.js
+```
+
+**What is collected (and nothing else):**
+
+| Field        | Example            | Notes                    |
+| ------------ | ------------------ | ------------------------ |
+| `method`     | `"submitInvoice"`  | SDK method name          |
+| `success`    | `true`             | Outcome                  |
+| `errorCode`  | `"NetworkError"`   | Only on failure          |
+| `network`    | `"testnet"`        | `testnet` or `mainnet`   |
+| `version`    | `"0.1.0"`          | SDK version              |
+
+**What is never collected:** wallet addresses, invoice IDs, amounts, secret keys, or any other identifying information.
+
+Events are sent to `https://analytics.iln.finance/event` (configurable via `ILN_ANALYTICS_ENDPOINT`). The collector validates that no PII fields are present before writing to the database. Failure to reach the endpoint is silently ignored and never throws.
+
+Privacy policy: ILN analytics are aggregate and anonymous. No personal data, no wallet addresses, no correlation to individual users. Data is used solely to prioritise SDK development.
+
 ## Development
 
 ```bash

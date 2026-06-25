@@ -13,6 +13,7 @@ import {
 } from "./db";
 import { cacheGet, cacheSet } from "./cache";
 import { createGraphQLHandler } from "./graphql";
+import { createApiRateLimiter } from "./rateLimit";
 
 /**
  * Build and return the Express application.
@@ -21,6 +22,10 @@ import { createGraphQLHandler } from "./graphql";
  */
 export function createApp(): express.Application {
   const app = express();
+  // Trust the first hop's X-Forwarded-For (e.g. Railway's proxy) so
+  // per-IP rate limiting sees real client IPs rather than the proxy's.
+  app.set("trust proxy", 1);
+  app.use(createApiRateLimiter());
   app.use(express.json());
 
   // ── GraphQL (queries, mutations, subscriptions via SSE + GraphiQL) ──────────
@@ -94,12 +99,17 @@ export function createApp(): express.Application {
   });
 
   app.get("/lps/top", (req: Request, res: Response) => {
-    const rawLimit = typeof req.query.limit === "string" ? Number(req.query.limit) : 10;
-    const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 10;
-    const period = typeof req.query.period === "string" ? req.query.period : "all";
+    const rawLimit =
+      typeof req.query.limit === "string" ? Number(req.query.limit) : 10;
+    const limit =
+      Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 10;
+    const period =
+      typeof req.query.period === "string" ? req.query.period : "all";
 
     if (!["all", "week", "month"].includes(period)) {
-      res.status(400).json({ error: "Invalid period - expected all, week, or month" });
+      res
+        .status(400)
+        .json({ error: "Invalid period - expected all, week, or month" });
       return;
     }
 
@@ -115,10 +125,13 @@ export function createApp(): express.Application {
   });
 
   app.get("/history/:address", (req: Request, res: Response) => {
-    const role = typeof req.query.role === "string" ? req.query.role : "freelancer";
+    const role =
+      typeof req.query.role === "string" ? req.query.role : "freelancer";
 
     if (role !== "freelancer" && role !== "payer" && role !== "funder") {
-      res.status(400).json({ error: "Invalid role - expected freelancer, payer, or funder" });
+      res.status(400).json({
+        error: "Invalid role - expected freelancer, payer, or funder",
+      });
       return;
     }
 
@@ -130,7 +143,9 @@ export function createApp(): express.Application {
     const id = parseInt(req.params.id, 10);
 
     if (isNaN(id) || id <= 0) {
-      res.status(400).json({ error: "Invalid invoice ID - must be a positive integer" });
+      res
+        .status(400)
+        .json({ error: "Invalid invoice ID - must be a positive integer" });
       return;
     }
 

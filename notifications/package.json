@@ -19,7 +19,8 @@
     "@stellar/stellar-sdk": "^15.0.1",
     "better-sqlite3": "^11.0.0",
     "dotenv": "^16.4.5",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "ws": "^8.16.0"
   },
   "devDependencies": {
     "@iln/eslint-config": "workspace:*",

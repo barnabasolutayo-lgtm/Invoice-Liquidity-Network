@@ -2,3 +2,4 @@
 // Relies on Web Crypto API instead of Node.js crypto.
 export * from './clients/InvoiceClient';
 export * from './crypto-browser';
+export * from './tokens';

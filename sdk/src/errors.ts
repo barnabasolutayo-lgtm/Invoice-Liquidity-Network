@@ -74,6 +74,13 @@ export class GenericContractError extends ILNError {
   }
 }
 
+export class SimulationError extends ILNError {
+  constructor(message = "Transaction simulation failed.", remediation = "Review transaction parameters and contract state.") {
+    super(message, "SIMULATION_FAILED", remediation);
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
 export function parseContractError(xdrError: unknown): ILNError {
   const errorStr = typeof xdrError === 'string' ? xdrError : JSON.stringify(xdrError);
   if (errorStr.includes("InvalidDiscountRate")) return new InvalidDiscountRateError();

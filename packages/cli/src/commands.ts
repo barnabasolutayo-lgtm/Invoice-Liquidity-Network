@@ -4,6 +4,7 @@ import Table from "cli-table3";
 import { ILNSdk, AnalyticsSDK, createKeypairSigner } from "@iln/sdk";
 import { loadConfig, saveConfig, ILNConfig } from "./config";
 import { Keypair } from "@stellar/stellar-sdk";
+import fs from "fs";
 
 // Constants
 const STROOPS_PER_UNIT = 10_000_000n;
@@ -336,6 +337,118 @@ export function registerCommands(program: Command) {
           },
           program.opts().json
         );
+      } catch (err: any) {
+        console.error(pc.red(`Error: ${err.message}`));
+        process.exit(1);
+      }
+    });
+
+  // iln invoice watch
+  invoice
+    .command("watch")
+    .description("Watch an invoice for real-time status updates")
+    .requiredOption("--id <id>", "Invoice ID")
+    .option("--interval <ms>", "Poll interval in milliseconds", "3000")
+    .action(async (options) => {
+      const config = loadConfig();
+      const sdk = createSdkInstance(config);
+      const invoiceId = BigInt(options.id);
+      const intervalMs = Math.max(1000, parseInt(options.interval, 10) || 3000);
+      const TERMINAL = new Set(["Paid", "Defaulted", "Disputed"]);
+
+      let lastStatus: string | undefined;
+
+      const print = (inv: any) => {
+        const ts = new Date().toISOString();
+        if (program.opts().json) {
+          console.log(JSON.stringify({ ts, id: inv.id.toString(), status: inv.status }));
+        } else {
+          console.log(`[${ts}] Invoice ${inv.id} — ${pc.cyan(inv.status)}`);
+        }
+      };
+
+      console.log(pc.bold(`Watching invoice ${invoiceId} (Ctrl-C to stop)...`));
+
+      const poll = async () => {
+        try {
+          const inv = await sdk.getInvoice(invoiceId);
+          if (inv.status !== lastStatus) {
+            print(inv);
+            lastStatus = inv.status;
+          }
+          if (TERMINAL.has(inv.status)) {
+            console.log(pc.green(`Invoice reached terminal state: ${inv.status}`));
+            process.exit(0);
+          }
+        } catch (err: any) {
+          console.error(pc.red(`Error: ${err.message}`));
+        }
+      };
+
+      await poll();
+      const timer = setInterval(poll, intervalMs);
+
+      process.on("SIGINT", () => {
+        clearInterval(timer);
+        console.log("\nStopped watching.");
+        process.exit(0);
+      });
+    });
+
+  // iln invoice export
+  invoice
+    .command("export")
+    .description("Export invoices to CSV")
+    .option("--address <address>", "Filter by freelancer, payer, or funder address")
+    .option("--output <file>", "Output file path (use - for stdout)", "invoices.csv")
+    .action(async (options) => {
+      try {
+        const config = loadConfig();
+        const sdk = createSdkInstance(config);
+        const count = await sdk.getInvoiceCount();
+        const invoices = [];
+
+        for (let i = 1n; i <= count; i++) {
+          try {
+            const inv = await sdk.getInvoice(i);
+            if (options.address) {
+              if (
+                inv.freelancer === options.address ||
+                inv.payer === options.address ||
+                inv.funder === options.address
+              ) {
+                invoices.push(inv);
+              }
+            } else {
+              invoices.push(inv);
+            }
+          } catch {
+            // Skip failed/non-existent indexes
+          }
+        }
+
+        const header = "id,freelancer,payer,amount,discountRate,dueDate,status,funder,fundedAt";
+        const rows = invoices.map((inv) =>
+          [
+            inv.id.toString(),
+            inv.freelancer,
+            inv.payer,
+            inv.amount.toString(),
+            inv.discountRate,
+            inv.dueDate,
+            inv.status,
+            inv.funder ?? "",
+            inv.fundedAt ?? "",
+          ].join(",")
+        );
+        const csv = [header, ...rows].join("\n");
+
+        if (options.output === "-") {
+          console.log(csv);
+        } else {
+          fs.writeFileSync(options.output, csv, "utf8");
+          console.log(pc.green(`✓ Exported ${invoices.length} invoice(s) to ${options.output}`));
+        }
       } catch (err: any) {
         console.error(pc.red(`Error: ${err.message}`));
         process.exit(1);

@@ -99,3 +99,62 @@ export interface CompatibilityResult {
   sdkVersion: string;
   issues: string[];
 }
+
+export interface VersionInfo {
+  major: number;
+  minor: number;
+  patch: number;
+  raw: string;
+}
+
+export interface DeprecationWarning {
+  method: string;
+  message: string;
+  alternative?: string;
+  removedIn?: string;
+}
+
+export interface MigrationGuide {
+  fromVersion: string;
+  toVersion: string;
+  changes: MigrationChange[];
+}
+
+export interface MigrationChange {
+  type: "breaking" | "deprecated" | "added" | "removed";
+  description: string;
+  migration?: string;
+}
+
+export interface BatchResult {
+  success: boolean;
+  transactionHash?: string;
+  results: BatchOperationResult[];
+  totalFee: bigint;
+}
+
+export interface BatchOperationResult {
+  index: number;
+  success: boolean;
+  error?: string;
+  invoiceId?: bigint;
+}
+
+export interface BatchSubmitParams {
+  invoices: Array<{
+    freelancer: string;
+    payer: string;
+    amount: bigint;
+    dueDate: number;
+    discountRate: number;
+  }>;
+}
+
+export interface BatchFundParams {
+  funder: string;
+  invoiceIds: bigint[];
+}
+
+export interface BatchPayParams {
+  invoiceIds: bigint[];
+}

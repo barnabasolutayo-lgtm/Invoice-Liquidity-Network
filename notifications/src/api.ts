@@ -1,4 +1,5 @@
 import express, { Request, Response } from "express";
+import { randomBytes } from "crypto";
 import {
   createSubscription,
   deleteSubscriptionByAddressAndDestination,
@@ -23,6 +24,7 @@ interface SubscribeRequest {
   channel: string;
   destination: string;
   triggers: unknown;
+  webhook_secret?: string;
 }
 
 export function createApp() {
@@ -41,9 +43,9 @@ export function createApp() {
     }
 
     if (!validateChannel(body.channel)) {
-      return res
-        .status(400)
-        .json({ error: `channel must be one of: ${ALLOWED_CHANNELS.join(", ")}` });
+      return res.status(400).json({
+        error: `channel must be one of: ${ALLOWED_CHANNELS.join(", ")}`,
+      });
     }
 
     if (!body.destination || typeof body.destination !== "string") {
@@ -51,20 +53,28 @@ export function createApp() {
     }
 
     if (!Array.isArray(body.triggers) || body.triggers.length === 0) {
-      return res.status(400).json({ error: "triggers must be a non-empty array" });
+      return res
+        .status(400)
+        .json({ error: "triggers must be a non-empty array" });
     }
 
     const triggers = body.triggers as unknown[];
     if (!triggers.every(validateTrigger)) {
-      return res.status(400).json({ error: `triggers must be one of: ${ALLOWED_TRIGGERS.join(", ")}` });
+      return res.status(400).json({
+        error: `triggers must be one of: ${ALLOWED_TRIGGERS.join(", ")}`,
+      });
     }
 
     if (body.channel === "email" && !isValidEmail(body.destination)) {
-      return res.status(400).json({ error: "destination must be a valid email address" });
+      return res
+        .status(400)
+        .json({ error: "destination must be a valid email address" });
     }
 
     if (body.channel === "webhook" && !isValidUrl(body.destination)) {
-      return res.status(400).json({ error: "destination must be a valid http or https URL" });
+      return res
+        .status(400)
+        .json({ error: "destination must be a valid http or https URL" });
     }
 
     if (body.channel === "sms" && !isValidPhone(body.destination)) {
@@ -76,6 +86,12 @@ export function createApp() {
       channel: body.channel as "email" | "webhook" | "sms",
       destination: body.destination,
       triggers: triggers as NotificationTrigger[],
+      webhook_secret:
+        body.channel === "webhook"
+          ? typeof body.webhook_secret === "string"
+            ? body.webhook_secret
+            : randomBytes(32).toString("hex")
+          : undefined,
     });
 
     return res.status(201).json({ subscription });
@@ -114,15 +130,34 @@ export function createApp() {
       return res.status(400).json({ error: "address is required" });
     }
 
-    const subscriptions = getSubscriptionsByAddress(address);
+    const subscriptions = getSubscriptionsByAddress(address).map((sub) => ({
+      id: sub.id,
+      stellar_address: sub.stellar_address,
+      channel: sub.channel,
+      destination: sub.destination,
+      triggers: sub.triggers,
+      created_at: sub.created_at,
+    }));
     return res.json({ subscriptions });
+  });
+
+  app.get("/subscriptions/:id/logs", (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) {
+      return res.status(400).json({ error: "Invalid subscription id" });
+    }
+
+    const logs = getWebhookDeliveryLogs(id);
+    return res.json({ logs });
   });
 
   app.post("/test-webhook", async (req: Request, res: Response) => {
     const { id } = req.body as { id: number };
 
     if (typeof id !== "number") {
-      return res.status(400).json({ error: "id is required and must be a number" });
+      return res
+        .status(400)
+        .json({ error: "id is required and must be a number" });
     }
 
     const subscription = getSubscriptionById(id);
@@ -152,15 +187,17 @@ export function createApp() {
         },
         recipientAddress: subscription.stellar_address,
         subject: "Webhook Test",
-        message: "This is a test notification from the ILN Notification Service.",
+        message:
+          "This is a test notification from the ILN Notification Service.",
         actor: "freelancer",
       });
 
       return res.json({ success: true, statusCode: 200 });
     } catch (error: any) {
-      const statusCode = error.message.includes("attempts:") ? 
-        parseInt(error.message.split(": ")[1]) || 500 : 500;
-        
+      const statusCode = error.message.includes("attempts:")
+        ? parseInt(error.message.split(": ")[1]) || 500
+        : 500;
+
       return res.json({ success: false, statusCode });
     }
   });

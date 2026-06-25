@@ -140,6 +140,44 @@ Use it before pushing changes so you can match the relevant CI checks locally.
 
 ---
 
+## Releasing the SDK
+
+The `@iln/sdk` package (`packages/sdk`) is published to npm automatically by the
+[`sdk-release.yml`](./.github/workflows/sdk-release.yml) workflow. Releases are
+**tag-driven** and reproducible — no one publishes from a laptop.
+
+**Before tagging**
+
+1. Land the changes you want to release on `main`.
+2. Add the new version's entry to the top of [`CHANGELOG.md`](./CHANGELOG.md)
+   using the `## [x.y.z] - YYYY-MM-DD` heading format. The release workflow
+   copies this section verbatim into the GitHub Release notes.
+3. Bump `version` in `packages/sdk/package.json` to match.
+
+**Cutting the release**
+
+```bash
+git tag v1.2.3        # tag must start with "v" and match the package version
+git push origin v1.2.3
+```
+
+Pushing a `v*` tag triggers the workflow, which will:
+
+- install, build, and test the SDK;
+- publish to npm with **build provenance** (`--provenance`) for supply-chain
+  transparency, authenticated via the `NPM_TOKEN` repository secret;
+- create a GitHub Release whose body is the changelog section for that version.
+
+**Dry runs.** Every pull request that touches `packages/sdk/**` runs the same
+build and a `pnpm pack` dry run (no publish), so packaging regressions are
+caught before a tag is ever cut.
+
+**Required secret.** `NPM_TOKEN` — an npm automation token with publish rights
+to the `@iln` scope. Provenance additionally relies on the workflow's
+`id-token: write` permission, which is already configured.
+
+---
+
 ## Submitting a pull request
 ## Pull request process
 

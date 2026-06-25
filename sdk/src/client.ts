@@ -10,10 +10,15 @@ import {
   xdr,
 } from "@stellar/stellar-sdk";
 import { createLogger } from "./logger";
+import { track } from "./usage-analytics";
 
 import type { Invoice, InvoiceState } from "@iln/shared";
 
 import type {
+  BatchFundParams,
+  BatchPayParams,
+  BatchResult,
+  BatchSubmitParams,
   ClaimDefaultParams,
   FundInvoiceParams,
   ILNSdkConfig,
@@ -27,6 +32,8 @@ import type {
 } from "./types";
 
 import { openSSE } from "./stream";
+import { ILNEventEmitter } from "./event-emitter";
+import type { InvoiceEventData, WalletEventData, ErrorEventData } from "./event-emitter";
 
 export type EventCallback = (event: ContractEvent) => void | Promise<void>;
 export type Unsubscribe = () => void;
@@ -72,6 +79,7 @@ export class ILNSdk {
   private readonly requestTimeouts: RequestTimeouts;
   private protocolConfigCache: { expiresAt: number; value: ProtocolConfig } | null = null;
   private readonly logger = createLogger("client");
+  private readonly analyticsNetwork: string;
 
   constructor(config: ILNSdkConfig) {
     this.contractId = config.contractId;
@@ -80,6 +88,7 @@ export class ILNSdk {
     this.rpcUrl = config.rpcUrl;
     this.signer = config.signer;
     this.requestTimeouts = resolveRequestTimeouts(config);
+    this.analyticsNetwork = config.networkPassphrase.includes('Test SDF Network') ? 'testnet' : 'mainnet';
   }
 
   private async wrapRpcCall<T>(promise: Promise<T>, operationName: string): Promise<T> {
@@ -169,6 +178,178 @@ export class ILNSdk {
     this.validateBatchSimulation(simulation);
 
     return transaction;
+  }
+
+  async batchSubmitInvoices(params: BatchSubmitParams): Promise<BatchResult> {
+    const signerAddress = await this.requireSignerAddress();
+    const results: BatchResult["results"] = [];
+    let totalFee = BigInt(0);
+
+    const operations: TransactionOperation[] = [];
+    for (let i = 0; i < params.invoices.length; i++) {
+      const invoice = params.invoices[i];
+      if (signerAddress !== invoice.freelancer) {
+        results.push({
+          index: i,
+          success: false,
+          error: "submitInvoice must be signed by the freelancer address.",
+        });
+        continue;
+      }
+
+      operations.push(this.buildSubmitInvoiceOperation(invoice));
+      results.push({ index: i, success: true });
+    }
+
+    if (operations.length === 0) {
+      return { success: false, results, totalFee: BigInt(0) };
+    }
+
+    try {
+      const transaction = await this.batch(operations);
+      const simulation = await this.wrapRpcCall(
+        this.server.simulateTransaction(transaction),
+        "simulateTransaction"
+      );
+
+      const simResult = simulation as { minResourceFee?: number };
+      totalFee = BigInt(simResult?.minResourceFee ?? BASE_FEE);
+
+      const preparedTransaction = await this.prepareTransaction(transaction);
+      await this.signAndSend(preparedTransaction, signerAddress, "batchSubmitInvoices");
+
+      return { success: true, results, totalFee };
+    } catch (error: any) {
+      return {
+        success: false,
+        results: results.map((r) => ({
+          ...r,
+          success: false,
+          error: r.error ?? error.message,
+        })),
+        totalFee,
+      };
+    }
+  }
+
+  async batchFundInvoices(params: BatchFundParams): Promise<BatchResult> {
+    const signerAddress = await this.requireSignerAddress();
+    const results: BatchResult["results"] = [];
+    let totalFee = BigInt(0);
+
+    if (signerAddress !== params.funder) {
+      return {
+        success: false,
+        results: params.invoiceIds.map((_, i) => ({
+          index: i,
+          success: false,
+          error: "batchFundInvoices must be signed by the funder address.",
+        })),
+        totalFee: BigInt(0),
+      };
+    }
+
+    const operations: TransactionOperation[] = params.invoiceIds.map((invoiceId, i) => {
+      results.push({ index: i, success: true, invoiceId });
+      return this.buildFundInvoiceOperation({ funder: params.funder, invoiceId });
+    });
+
+    try {
+      const transaction = await this.batch(operations);
+      const simulation = await this.wrapRpcCall(
+        this.server.simulateTransaction(transaction),
+        "simulateTransaction"
+      );
+
+      const simResult = simulation as { minResourceFee?: number };
+      totalFee = BigInt(simResult?.minResourceFee ?? BASE_FEE);
+
+      const preparedTransaction = await this.prepareTransaction(transaction);
+      await this.signAndSend(preparedTransaction, params.funder, "batchFundInvoices");
+
+      return { success: true, results, totalFee };
+    } catch (error: any) {
+      return {
+        success: false,
+        results: results.map((r) => ({
+          ...r,
+          success: false,
+          error: error.message,
+        })),
+        totalFee,
+      };
+    }
+  }
+
+  async batchMarkPaid(params: BatchPayParams): Promise<BatchResult> {
+    const signerAddress = await this.requireSignerAddress();
+    const results: BatchResult["results"] = [];
+    let totalFee = BigInt(0);
+
+    const operations: TransactionOperation[] = params.invoiceIds.map((invoiceId, i) => {
+      results.push({ index: i, success: true, invoiceId });
+      return this.buildMarkPaidOperation(signerAddress, { invoiceId });
+    });
+
+    try {
+      const transaction = await this.batch(operations);
+      const simulation = await this.wrapRpcCall(
+        this.server.simulateTransaction(transaction),
+        "simulateTransaction"
+      );
+
+      const simResult = simulation as { minResourceFee?: number };
+      totalFee = BigInt(simResult?.minResourceFee ?? BASE_FEE);
+
+      const preparedTransaction = await this.prepareTransaction(transaction);
+      await this.signAndSend(preparedTransaction, signerAddress, "batchMarkPaid");
+
+      return { success: true, results, totalFee };
+    } catch (error: any) {
+      return {
+        success: false,
+        results: results.map((r) => ({
+          ...r,
+          success: false,
+          error: error.message,
+        })),
+        totalFee,
+      };
+    }
+  }
+
+  async estimateBatchFee(operations: TransactionOperation[]): Promise<bigint> {
+    if (operations.length === 0) {
+      return BigInt(0);
+    }
+
+    const sourceAddress = await this.resolveBatchSourceAddress(operations);
+    const sourceAccount = (await this.wrapRpcCall(
+      this.server.getAccount(sourceAddress),
+      "getAccount"
+    )) as Account;
+
+    const transactionBuilder = new TransactionBuilder(sourceAccount, {
+      fee: BASE_FEE,
+      networkPassphrase: this.networkPassphrase,
+    });
+
+    for (const operation of operations) {
+      transactionBuilder.addOperation(operation);
+    }
+
+    const transaction = transactionBuilder.setTimeout(30).build();
+    const simulation = await this.wrapRpcCall(
+      this.server.simulateTransaction(transaction),
+      "simulateTransaction"
+    );
+
+    const simResult = simulation as { minResourceFee?: number; error?: unknown };
+    if (simResult.error) {
+      throw new Error(`Fee estimation failed: ${String(simResult.error)}`);
+    }
+
+    return BigInt(simResult?.minResourceFee ?? BASE_FEE);
   }
 
   private buildInvokeContractFunctionOperation(
@@ -299,6 +480,10 @@ export class ILNSdk {
     return () => handle.close();
   }
 
+  createEventEmitter(options?: { maxHistorySize?: number }): ILNEventEmitter {
+    return new ILNEventEmitter(options);
+  }
+
   async submitInvoice(params: SubmitInvoiceParams): Promise<bigint> {
     const signerAddress = await this.requireSignerAddress();
 
@@ -306,26 +491,32 @@ export class ILNSdk {
       throw new ValidationError("submitInvoice must be signed by the freelancer address.");
     }
 
-    const transaction = await this.buildWriteTransaction(params.freelancer, "submit_invoice", [
-      this.toAddress(params.freelancer),
-      this.toAddress(params.payer),
-      nativeToScVal(params.amount, { type: "i128" }),
-      nativeToScVal(params.dueDate, { type: "u64" }),
-      nativeToScVal(params.discountRate, { type: "u32" }),
-    ]);
+    try {
+      const transaction = await this.buildWriteTransaction(params.freelancer, "submit_invoice", [
+        this.toAddress(params.freelancer),
+        this.toAddress(params.payer),
+        nativeToScVal(params.amount, { type: "i128" }),
+        nativeToScVal(params.dueDate, { type: "u64" }),
+        nativeToScVal(params.discountRate, { type: "u32" }),
+      ]);
 
-    const simulation = await this.simulateWriteTransaction("submit_invoice", transaction);
-    const invoiceId = this.extractBigIntResult(simulation, "submit_invoice");
-    const preparedTransaction = await this.prepareTransaction(transaction);
+      const simulation = await this.simulateWriteTransaction("submit_invoice", transaction);
+      const invoiceId = this.extractBigIntResult(simulation, "submit_invoice");
+      const preparedTransaction = await this.prepareTransaction(transaction);
 
-    if (this.logger.enabled) {
-      this.logger("submitInvoice prepared transaction", {
-        xdr: this.toHex(preparedTransaction.toXDR()),
-      });
+      if (this.logger.enabled) {
+        this.logger("submitInvoice prepared transaction", {
+          xdr: this.toHex(preparedTransaction.toXDR()),
+        });
+      }
+
+      await this.signAndSend(preparedTransaction, params.freelancer, "submitInvoice");
+      track("submitInvoice", this.analyticsNetwork, true);
+      return invoiceId;
+    } catch (err: any) {
+      track("submitInvoice", this.analyticsNetwork, false, err?.code ?? err?.name);
+      throw err;
     }
-
-    await this.signAndSend(preparedTransaction, params.freelancer, "submitInvoice");
-    return invoiceId;
   }
 
   async fundInvoice(params: FundInvoiceParams): Promise<void> {
@@ -335,47 +526,59 @@ export class ILNSdk {
       throw new ValidationError("fundInvoice must be signed by the funder address.");
     }
 
-    const transaction = await this.buildWriteTransaction(params.funder, "fund_invoice", [
-      this.toAddress(params.funder),
-      nativeToScVal(params.invoiceId, { type: "u64" }),
-    ]);
+    try {
+      const transaction = await this.buildWriteTransaction(params.funder, "fund_invoice", [
+        this.toAddress(params.funder),
+        nativeToScVal(params.invoiceId, { type: "u64" }),
+      ]);
 
-    if (this.logger.enabled) {
-      this.logger("fundInvoice called", { params });
-      this.logger("fundInvoice transaction", { xdr: this.toHex(transaction.toXDR()) });
+      if (this.logger.enabled) {
+        this.logger("fundInvoice called", { params });
+        this.logger("fundInvoice transaction", { xdr: this.toHex(transaction.toXDR()) });
+      }
+
+      const preparedTransaction = await this.prepareTransaction(transaction);
+
+      if (this.logger.enabled) {
+        this.logger("fundInvoice prepared transaction", {
+          xdr: this.toHex(preparedTransaction.toXDR()),
+        });
+      }
+
+      await this.signAndSend(preparedTransaction, params.funder, "fundInvoice");
+      track("fundInvoice", this.analyticsNetwork, true);
+    } catch (err: any) {
+      track("fundInvoice", this.analyticsNetwork, false, err?.code ?? err?.name);
+      throw err;
     }
-
-    const preparedTransaction = await this.prepareTransaction(transaction);
-
-    if (this.logger.enabled) {
-      this.logger("fundInvoice prepared transaction", {
-        xdr: this.toHex(preparedTransaction.toXDR()),
-      });
-    }
-
-    await this.signAndSend(preparedTransaction, params.funder, "fundInvoice");
   }
 
   async markPaid(params: MarkPaidParams): Promise<void> {
-    const payer = await this.requireSignerAddress();
-    const transaction = await this.buildWriteTransaction(payer, "mark_paid", [
-      nativeToScVal(params.invoiceId, { type: "u64" }),
-    ]);
+    try {
+      const payer = await this.requireSignerAddress();
+      const transaction = await this.buildWriteTransaction(payer, "mark_paid", [
+        nativeToScVal(params.invoiceId, { type: "u64" }),
+      ]);
 
-    if (this.logger.enabled) {
-      this.logger("markPaid called", { params });
-      this.logger("markPaid transaction", { xdr: this.toHex(transaction.toXDR()) });
+      if (this.logger.enabled) {
+        this.logger("markPaid called", { params });
+        this.logger("markPaid transaction", { xdr: this.toHex(transaction.toXDR()) });
+      }
+
+      const preparedTransaction = await this.prepareTransaction(transaction);
+
+      if (this.logger.enabled) {
+        this.logger("markPaid prepared transaction", {
+          xdr: this.toHex(preparedTransaction.toXDR()),
+        });
+      }
+
+      await this.signAndSend(preparedTransaction, payer, "markPaid");
+      track("markPaid", this.analyticsNetwork, true);
+    } catch (err: any) {
+      track("markPaid", this.analyticsNetwork, false, err?.code ?? err?.name);
+      throw err;
     }
-
-    const preparedTransaction = await this.prepareTransaction(transaction);
-
-    if (this.logger.enabled) {
-      this.logger("markPaid prepared transaction", {
-        xdr: this.toHex(preparedTransaction.toXDR()),
-      });
-    }
-
-    await this.signAndSend(preparedTransaction, payer, "markPaid");
   }
 
   async claimDefault(params: ClaimDefaultParams): Promise<void> {
@@ -385,38 +588,51 @@ export class ILNSdk {
       throw new ValidationError("claimDefault must be signed by the funder address.");
     }
 
-    const transaction = await this.buildWriteTransaction(params.funder, "claim_default", [
-      this.toAddress(params.funder),
-      nativeToScVal(params.invoiceId, { type: "u64" }),
-    ]);
+    try {
+      const transaction = await this.buildWriteTransaction(params.funder, "claim_default", [
+        this.toAddress(params.funder),
+        nativeToScVal(params.invoiceId, { type: "u64" }),
+      ]);
 
-    if (this.logger.enabled) {
-      this.logger("claimDefault called", { params });
-      this.logger("claimDefault transaction", { xdr: this.toHex(transaction.toXDR()) });
+      if (this.logger.enabled) {
+        this.logger("claimDefault called", { params });
+        this.logger("claimDefault transaction", { xdr: this.toHex(transaction.toXDR()) });
+      }
+
+      const preparedTransaction = await this.prepareTransaction(transaction);
+
+      if (this.logger.enabled) {
+        this.logger("claimDefault prepared transaction", {
+          xdr: this.toHex(preparedTransaction.toXDR()),
+        });
+      }
+
+      await this.signAndSend(preparedTransaction, params.funder, "claimDefault");
+      track("claimDefault", this.analyticsNetwork, true);
+    } catch (err: any) {
+      track("claimDefault", this.analyticsNetwork, false, err?.code ?? err?.name);
+      throw err;
     }
-
-    const preparedTransaction = await this.prepareTransaction(transaction);
-
-    if (this.logger.enabled) {
-      this.logger("claimDefault prepared transaction", {
-        xdr: this.toHex(preparedTransaction.toXDR()),
-      });
-    }
-
-    await this.signAndSend(preparedTransaction, params.funder, "claimDefault");
   }
 
   async getInvoice(invoiceId: bigint): Promise<Invoice> {
-    const transaction = this.buildReadTransaction("get_invoice", [
-      nativeToScVal(invoiceId, { type: "u64" }),
-    ]);
-    const simulation = await this.simulateReadTransaction("get_invoice", transaction);
+    try {
+      const transaction = this.buildReadTransaction("get_invoice", [
+        nativeToScVal(invoiceId, { type: "u64" }),
+      ]);
+      const simulation = await this.simulateReadTransaction("get_invoice", transaction);
 
-    if (this.logger.enabled) {
-      this.logger("getInvoice simulation result", this.summarizeSimulation(simulation));
+      if (this.logger.enabled) {
+        this.logger("getInvoice simulation result", this.summarizeSimulation(simulation));
+      }
+
+      const result = this.extractInvoiceResult(simulation);
+      track("getInvoice", this.analyticsNetwork, true);
+      return result;
+    } catch (err: any) {
+      track("getInvoice", this.analyticsNetwork, false, err?.code ?? err?.name);
+      throw err;
     }
-
-    return this.extractInvoiceResult(simulation);
   }
 
   /** Fetch reputation score for an address */
