@@ -147,3 +147,11 @@ export function formatHistoryJson(invoices: ListedInvoice[]): string {
 function row(label: string, value: string): string {
   return `${pc.bold(label.padEnd(11))} ${value}`;
 }
+
+export function helpSection(title: string): string {
+  return pc.bold(title);
+}
+
+export function helpExample(text: string): string {
+  return `  ${pc.dim(text)}`;
+}
