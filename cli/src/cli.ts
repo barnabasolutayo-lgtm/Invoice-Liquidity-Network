@@ -33,6 +33,7 @@ import type { ResolvedConfig, RpcServerLike } from "./types";
 
 import { checkCompatibility } from "@invoice-liquidity/sdk";
 import { runInteractive } from "./interactive";
+import { VersionManager } from "./version";
 
 export interface CliDependencies {
   createClient(config: ResolvedConfig): ILNClient;
@@ -109,8 +110,11 @@ export async function runCli(
     },
   });
 
+  const versionManager = new VersionManager(ui);
+
   program
     .name("iln")
+    .version(versionManager.getCurrentVersion(), "-v, --version", "output the current version")
     .description("Invoice Liquidity Network CLI")
     .exitOverride()
     .showHelpAfterError()
@@ -136,6 +140,22 @@ export async function runCli(
         const opts = program.opts() as { quiet?: boolean };
         if (!opts.quiet) {
           ui.info(`Using ${describeConfig(config)}`);
+        }
+
+        // --- Version Management ---
+        const currentVersion = versionManager.getCurrentVersion();
+        
+        // 1. Version Pinning
+        if (config.requiredVersion && config.requiredVersion !== currentVersion) {
+          throw new Error(
+            `Version mismatch: This project requires ILN CLI version ${config.requiredVersion}, but you are running ${currentVersion}.`,
+          );
+        }
+
+        // 2. Update Check
+        if (config.autoUpdate && !opts.quiet) {
+          // Fire and forget update check to not block startup significantly
+          void versionManager.notifyUpdateIfAvailable();
         }
       } catch (error) {
         throw error;
@@ -666,6 +686,23 @@ export async function runCli(
         throw new Error("--count must be a positive integer");
       }
       await seeder.seed({ scenario: options.scenario, count, token: options.token });
+    });
+
+  // Version management commands
+  program
+    .command("update")
+    .description("Check for and install CLI updates.")
+    .argument("[version]", "target version to install")
+    .action(async (version?: string) => {
+      await versionManager.performUpdate(version);
+    });
+
+  program
+    .command("changelog")
+    .description("Show the changelog for the installed or specified version.")
+    .argument("[version]", "version to show changelog for")
+    .action(async (version?: string) => {
+      await versionManager.showChangelog(version);
     });
 
   // Interactive mode
