@@ -20,6 +20,7 @@ import {
   restoreInvoice,
   archiveOldData,
 } from "./archive";
+import { getDashboardMetrics, recordRequest, recordError } from "./dashboard";
 
 
 /**
@@ -65,6 +66,18 @@ export function createApp(): express.Application {
   const addDeprecationHeaders: RequestHandler = (_req, res, next) => {
     res.setHeader("Deprecation", "true");
     res.setHeader("Sunset", "Sat, 01 Jan 2026 00:00:00 GMT");
+    next();
+  };
+
+  const trackMetrics: RequestHandler = (req, res, next) => {
+    const start = Date.now();
+    res.on("finish", () => {
+      const duration = Date.now() - start;
+      recordRequest(duration);
+      if (res.statusCode >= 400) {
+        recordError(`${res.statusCode}`, `${req.method} ${req.path} returned ${res.statusCode}`);
+      }
+    });
     next();
   };
 
@@ -204,6 +217,11 @@ export function createApp(): express.Application {
     res.json(result);
   });
 
+  // GET /dashboard
+  router.get("/dashboard", (_req: Request, res: Response) => {
+    res.json(getDashboardMetrics());
+  });
+
   // GET /archive/stats
   router.get("/archive/stats", (_req: Request, res: Response) => {
     res.json(getArchiveStats());
@@ -260,6 +278,7 @@ export function createApp(): express.Application {
   });
 
   // ── Mount routes ───────────────────────────────────────────────────────────
+  app.use(trackMetrics);
   app.use(versionNegotiate);
   app.use("/v1", addV1Headers, router);
   app.use(addDeprecationHeaders, router);
