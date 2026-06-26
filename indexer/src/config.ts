@@ -33,4 +33,11 @@ export const CONFIG = {
     .split(",")
     .map((ip) => ip.trim())
     .filter(Boolean),
+  /** Archival schedule interval in ms (default: 24 hours). */
+  archiveIntervalMs: Number(process.env.ARCHIVE_INTERVAL_MS ?? "86400000"),
+  /** Retention period in days (default: 90 days). */
+  archiveOlderThanDays: Number(process.env.ARCHIVE_OLDER_THAN_DAYS ?? "90"),
+  /** Whether automatic background archival is enabled. */
+  archiveEnabled: process.env.ARCHIVE_ENABLED !== "false",
 } as const;
+

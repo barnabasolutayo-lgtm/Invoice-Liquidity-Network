@@ -13,6 +13,14 @@ import {
 import { cacheGet, cacheSet } from "./cache";
 import { createGraphQLHandler } from "./graphql";
 import { createApiRateLimiter } from "./rateLimit";
+import {
+  getArchiveStats,
+  queryArchiveInvoices,
+  queryArchiveEvents,
+  restoreInvoice,
+  archiveOldData,
+} from "./archive";
+
 
 /**
  * Build and return the Express application.
@@ -194,6 +202,55 @@ export function createApp(): express.Application {
     const result = { invoice };
     await cacheSet(cacheKey, JSON.stringify(result));
     res.json(result);
+  });
+
+  // GET /archive/stats
+  router.get("/archive/stats", (_req: Request, res: Response) => {
+    res.json(getArchiveStats());
+  });
+
+  // GET /archive/invoices
+  router.get("/archive/invoices", (req: Request, res: Response) => {
+    const { status, freelancer, payer, funder } = req.query;
+    const filter = {
+      status: typeof status === "string" ? status : undefined,
+      freelancer: typeof freelancer === "string" ? freelancer : undefined,
+      payer: typeof payer === "string" ? payer : undefined,
+      funder: typeof funder === "string" ? funder : undefined,
+    };
+    res.json({ invoices: queryArchiveInvoices(filter) });
+  });
+
+  // GET /archive/events
+  router.get("/archive/events", (req: Request, res: Response) => {
+    const invoiceId = typeof req.query.invoiceId === "string" ? parseInt(req.query.invoiceId, 10) : undefined;
+    res.json({ events: queryArchiveEvents(invoiceId !== undefined && isNaN(invoiceId) ? undefined : invoiceId) });
+  });
+
+  // POST /archive/restore/:id
+  router.post("/archive/restore/:id", (req: Request, res: Response) => {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id) || id <= 0) {
+      res.status(400).json({ error: "Invalid invoice ID - must be a positive integer" });
+      return;
+    }
+    const success = restoreInvoice(id);
+    if (!success) {
+      res.status(404).json({ error: `Invoice #${id} not found in archive` });
+      return;
+    }
+    res.json({ success: true, message: `Invoice #${id} and associated events restored successfully` });
+  });
+
+  // POST /archive/run
+  router.post("/archive/run", (req: Request, res: Response) => {
+    const olderThanDays = typeof req.body?.olderThanDays === "number" ? req.body.olderThanDays : 90;
+    try {
+      const result = archiveOldData(olderThanDays);
+      res.json({ success: true, ...result });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Archival run failed" });
+    }
   });
 
   // Catch-all 404 inside the router so a missing /v1/* route doesn't fall

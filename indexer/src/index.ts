@@ -3,6 +3,7 @@ import { createApp } from "./api";
 import { CONFIG } from "./config";
 import { startPolling } from "./poller";
 import { createGraphQLServer } from "./graphql/server";
+import { startArchivalScheduler } from "./archive";
 
 async function main() {
   const app = createApp();
@@ -18,6 +19,11 @@ async function main() {
   });
 
   startPolling();
+
+  if (CONFIG.archiveEnabled) {
+    startArchivalScheduler(CONFIG.archiveIntervalMs, CONFIG.archiveOlderThanDays);
+  }
 }
 
 main();
+
