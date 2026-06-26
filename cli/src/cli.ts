@@ -28,6 +28,13 @@ import { registerCompletionCommand } from "./completion";
 import { registerEnvCommands } from "./env";
 import { createKeypairFileSigner } from "./signer";
 import { TestnetAccountSeeder } from "./dev-seed";
+import {
+  createWallet,
+  importWallet,
+  listWallets,
+  deleteWallet,
+  fundWalletFromFriendbot,
+} from "./wallet";
 import type { Ui } from "./format";
 import type { ResolvedConfig, RpcServerLike } from "./types";
 
@@ -703,6 +710,153 @@ export async function runCli(
     .argument("[version]", "version to show changelog for")
     .action(async (version?: string) => {
       await versionManager.showChangelog(version);
+  // Wallet management commands
+  const walletCommand = program
+    .command("wallet")
+    .description("Manage Stellar keypairs for use with ILN.");
+
+  walletCommand
+    .command("create")
+    .description("Generate a new Stellar keypair and store it encrypted.")
+    .requiredOption("--name <name>", "wallet name identifier")
+    .requiredOption("--password <password>", "encryption password for the wallet")
+    .addHelpText(
+      "after",
+      [
+        "",
+        helpSection("Examples:"),
+        helpExample('iln wallet create --name my-wallet --password "my-secret"'),
+        "",
+        helpSection("Tips:"),
+        helpExample("Wallets are stored encrypted at ~/.iln/wallets/."),
+        helpExample("Use a strong password to protect your keypair."),
+        "",
+        helpSection("See also:"),
+        helpExample("iln wallet list       List all stored wallets"),
+        helpExample("iln wallet import     Import an existing secret key"),
+      ].join("\n"),
+    )
+    .action((options: { name: string; password: string }) => {
+      const wallet = createWallet(options.name, options.password);
+      ui.success(`Created wallet '${wallet.name}'`);
+      ui.info(`Public key: ${wallet.publicKey}`);
+      ui.info(`Created at: ${wallet.createdAt}`);
+    });
+
+  walletCommand
+    .command("import")
+    .description("Import an existing Stellar secret key into an encrypted wallet.")
+    .requiredOption("--name <name>", "wallet name identifier")
+    .requiredOption("--secret <secret>", "Stellar secret key (starts with S)")
+    .requiredOption("--password <password>", "encryption password for the wallet")
+    .addHelpText(
+      "after",
+      [
+        "",
+        helpSection("Examples:"),
+        helpExample('iln wallet import --name my-wallet --secret SABC... --password "my-secret"'),
+        "",
+        helpSection("Tips:"),
+        helpExample("The secret key is validated before import."),
+        helpExample("Use a strong password to protect your keypair."),
+        "",
+        helpSection("See also:"),
+        helpExample("iln wallet list       List all stored wallets"),
+        helpExample("iln wallet create     Generate a new keypair"),
+      ].join("\n"),
+    )
+    .action((options: { name: string; secret: string; password: string }) => {
+      const wallet = importWallet(options.name, options.secret, options.password);
+      ui.success(`Imported wallet '${wallet.name}'`);
+      ui.info(`Public key: ${wallet.publicKey}`);
+      ui.info(`Created at: ${wallet.createdAt}`);
+    });
+
+  walletCommand
+    .command("list")
+    .description("List all stored wallets.")
+    .addHelpText(
+      "after",
+      [
+        "",
+        helpSection("Examples:"),
+        helpExample("iln wallet list"),
+        "",
+        helpSection("See also:"),
+        helpExample("iln wallet create     Generate a new keypair"),
+        helpExample("iln wallet import     Import an existing secret key"),
+      ].join("\n"),
+    )
+    .action(() => {
+      const wallets = listWallets();
+      if (wallets.length === 0) {
+        ui.info("No wallets found. Use 'iln wallet create' or 'iln wallet import' to add one.");
+        return;
+      }
+
+      ui.info("Stored wallets:\n");
+      for (const wallet of wallets) {
+        ui.info(`  ${wallet.name}`);
+        ui.info(`    Public key: ${wallet.publicKey}`);
+        ui.info(`    Created: ${wallet.createdAt}`);
+        ui.info("");
+      }
+    });
+
+  walletCommand
+    .command("fund")
+    .description("Fund a wallet from Stellar Friendbot (testnet only).")
+    .requiredOption("--name <name>", "wallet name to fund")
+    .requiredOption("--password <password>", "encryption password for the wallet")
+    .option("--friendbot <url>", "Friendbot URL", "https://friendbot.stellar.org")
+    .addHelpText(
+      "after",
+      [
+        "",
+        helpSection("Examples:"),
+        helpExample('iln wallet fund --name my-wallet --password "my-secret"'),
+        "",
+        helpSection("Tips:"),
+        helpExample("Only works on testnet. Requires the wallet to exist."),
+        helpExample("Funds are sent to the wallet's public key."),
+        "",
+        helpSection("See also:"),
+        helpExample("iln wallet list       List all stored wallets"),
+      ].join("\n"),
+    )
+    .action(async (options: { name: string; password: string; friendbot?: string }) => {
+      const wallets = listWallets();
+      const wallet = wallets.find((w) => w.name === options.name);
+      if (!wallet) {
+        throw new Error(`Wallet '${options.name}' not found.`);
+      }
+
+      ui.info(`Funding wallet '${options.name}' (${wallet.publicKey})...`);
+      await fundWalletFromFriendbot(wallet.publicKey, options.friendbot);
+      ui.success(`Successfully funded wallet '${options.name}'`);
+    });
+
+  walletCommand
+    .command("delete")
+    .description("Delete a stored wallet.")
+    .requiredOption("--name <name>", "wallet name to delete")
+    .addHelpText(
+      "after",
+      [
+        "",
+        helpSection("Examples:"),
+        helpExample("iln wallet delete --name my-wallet"),
+        "",
+        helpSection("Tips:"),
+        helpExample("This action cannot be undone. Make sure you have backed up your secret key."),
+        "",
+        helpSection("See also:"),
+        helpExample("iln wallet list       List all stored wallets"),
+      ].join("\n"),
+    )
+    .action((options: { name: string }) => {
+      deleteWallet(options.name);
+      ui.success(`Deleted wallet '${options.name}'`);
     });
 
   // Interactive mode
@@ -713,6 +867,8 @@ export async function runCli(
       const config = load();
       const client = createClient(config);
       await runInteractive({ client, config, ui });
+    });
+
   program
     .command("man")
     .description("Print a roff man page for iln or a subcommand.")

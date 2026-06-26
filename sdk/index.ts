@@ -1,7 +1,7 @@
 // sdk/index.ts
 
 import { mapError } from './errors'
-export { setLocale } from './errors'
+export { setLocale, detectLocale } from './errors'
 export type { ErrorMessages } from './errors'
 
 export async function submitInvoice(invoke: any, params: {
