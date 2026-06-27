@@ -1,9 +1,11 @@
-export type InvoiceStatus = "Pending" | "Funded" | "Paid" | "Defaulted";
-export type ILNEventType = "submitted" | "funded" | "paid" | "defaulted";
+export type InvoiceStatus = "Pending" | "Funded" | "Paid" | "Defaulted" | "Disputed";
+export type ILNEventType = "submitted" | "funded" | "paid" | "defaulted" | "disputed";
 
 export type NotificationTrigger =
+  | "invoice_submitted"
   | "invoice_funded"
   | "invoice_paid"
+  | "invoice_disputed"
   | "invoice_defaulted"
   | "invoice_due_soon"
   | "invoice_overdue";
