@@ -6,6 +6,7 @@
   "local-development": "Local Development",
   "notifications": "Notifications",
   "sdk-api-reference": "SDK API Reference",
+  "sdk-migration-guide": "SDK Migration Guide",
   "ci-cd": "CI/CD",
   "tokens": "Tokens",
   "mutation-testing": "Mutation Testing",
