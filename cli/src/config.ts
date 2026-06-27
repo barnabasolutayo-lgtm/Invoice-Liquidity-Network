@@ -51,12 +51,22 @@ export class ConfigValidationError extends Error {
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 export const ConfigSchema = z.object({
+  /** Path to JSON schema */
+  $schema: z.string().optional(),
+  /** Config file version. Defaults to 2. */
+  version: z.number().optional().default(2),
   /** Target Stellar network. Defaults to "testnet". */
   network: z.enum(["testnet", "mainnet", "standalone"]).optional().default("testnet"),
   horizonUrl: z.string().url().optional(),
   rpcUrl: z.string().url().optional(),
   /** Contract IDs keyed by role, e.g. { invoice: "C…", token: "C…" }. */
-  contractIds: z.record(z.string()).default({}),
+  contractIds: z
+    .object({
+      invoice: z.string().optional(),
+      token: z.string().optional(),
+    })
+    .catchall(z.string())
+    .default({}),
   deployer: z
     .object({
       keypairPath: z.string().optional(),
@@ -65,6 +75,75 @@ export const ConfigSchema = z.object({
 });
 
 export type ILNConfigFile = z.infer<typeof ConfigSchema>;
+
+// ─── Migration ───────────────────────────────────────────────────────────────
+
+/**
+ * Migrate legacy configuration format (version 1) to the new nested format (version 2).
+ * Writes the migrated configuration back to disk if it was loaded from a JSON file.
+ */
+export function migrateConfig(rawConfig: any, filePath: string | null): any {
+  if (!rawConfig || typeof rawConfig !== "object") return rawConfig;
+
+  // Clone object to avoid mutating the original reference
+  const migrated = JSON.parse(JSON.stringify(rawConfig));
+  let changed = false;
+
+  // Migrate legacy root-level contractId -> contractIds.invoice
+  if (migrated.contractId) {
+    migrated.contractIds = migrated.contractIds || {};
+    if (!migrated.contractIds.invoice) {
+      migrated.contractIds.invoice = migrated.contractId;
+    }
+    delete migrated.contractId;
+    changed = true;
+  }
+
+  // Migrate legacy root-level keypairPath -> deployer.keypairPath
+  if (migrated.keypairPath) {
+    if (!migrated.deployer) {
+      migrated.deployer = {};
+    }
+    if (!migrated.deployer.keypairPath) {
+      migrated.deployer.keypairPath = migrated.keypairPath;
+    }
+    delete migrated.keypairPath;
+    changed = true;
+  }
+
+  // Migrate legacy root-level tokenId -> contractIds.token
+  if (migrated.tokenId) {
+    migrated.contractIds = migrated.contractIds || {};
+    if (!migrated.contractIds.token) {
+      migrated.contractIds.token = migrated.tokenId;
+    }
+    delete migrated.tokenId;
+    changed = true;
+  }
+
+  // Upgrade version to 2 if missing or older
+  if (migrated.version === undefined || migrated.version < 2) {
+    migrated.version = 2;
+    changed = true;
+  }
+
+  // Write migrated config back to file in-place if it's a JSON file
+  if (changed && filePath && existsSync(filePath)) {
+    try {
+      const ext = path.extname(filePath).toLowerCase();
+      if (ext === ".json") {
+        if (!migrated["$schema"]) {
+          migrated["$schema"] = "./config.schema.json";
+        }
+        writeFileSync(filePath, JSON.stringify(migrated, null, 2) + "\n");
+      }
+    } catch (err: any) {
+      // Ignore write errors to ensure robustness (e.g. read-only filesystems)
+    }
+  }
+
+  return migrated;
+}
 
 // ─── Load options ─────────────────────────────────────────────────────────────
 
@@ -88,14 +167,17 @@ export function loadConfig(options: LoadConfigOptions = {}): ResolvedConfig {
   const cwd = options.cwd ?? process.cwd();
   const env = options.env ?? process.env;
 
-  const { rawConfig, filePath } = readConfigFile(cwd);
+  const { rawConfig: initialRawConfig, filePath } = readConfigFile(cwd);
+
+  // Migrate old configuration structures dynamically
+  const rawConfig = migrateConfig(initialRawConfig, filePath);
 
   // Validate shape
   const parsed = ConfigSchema.safeParse(rawConfig);
   if (!parsed.success) {
     const hint = filePath ? ` (${path.basename(filePath)})` : "";
     const messages = parsed.error.issues
-      .map((i) => `${i.path.join(".") || "<root>"}: ${i.message}`)
+      .map((i) => `[Field: ${i.path.join(".") || "<root>"}] - ${i.message}`)
       .join("; ");
     throw new ConfigValidationError(`Config validation failed${hint}: ${messages}`);
   }
@@ -108,7 +190,6 @@ export function loadConfig(options: LoadConfigOptions = {}): ResolvedConfig {
     env.ILN_CONTRACT_ID,
     fileConfig.contractIds?.invoice,
     fileConfig.contractIds?.liquidity,
-    (rawConfig as any).contractId,
   );
   if (!contractId) {
     throw new ConfigValidationError(
@@ -119,7 +200,6 @@ export function loadConfig(options: LoadConfigOptions = {}): ResolvedConfig {
   const keypairPath = coalesce(
     env.ILN_KEYPAIR_PATH,
     fileConfig.deployer?.keypairPath,
-    (rawConfig as any).keypairPath,
   );
   if (!keypairPath) {
     throw new ConfigValidationError(
@@ -133,14 +213,12 @@ export function loadConfig(options: LoadConfigOptions = {}): ResolvedConfig {
     network,
     networkPassphrase: coalesce(
       env.ILN_NETWORK_PASSPHRASE,
-      (rawConfig as any).networkPassphrase,
       defaults.networkPassphrase,
     )!,
     rpcUrl: coalesce(env.ILN_RPC_URL, fileConfig.rpcUrl, defaults.rpcUrl)!,
     tokenId: coalesce(
       env.ILN_TOKEN_ID,
       fileConfig.contractIds?.token,
-      (rawConfig as any).tokenId,
     ),
   };
 }
@@ -164,16 +242,18 @@ export function initConfig(cwd: string): string {
   }
 
   const targetPath = path.join(cwd, ".ilnrc.json");
-  const template: ILNConfigFile = {
-    network: "testnet",
-    rpcUrl: DEFAULTS.testnet.rpcUrl,
-    horizonUrl: "https://horizon-testnet.stellar.org",
-    contractIds: {
-      invoice: "",
-      token: "",
+  const template = {
+    "$schema": "./config.schema.json",
+    "version": 2,
+    "network": "testnet",
+    "rpcUrl": DEFAULTS.testnet.rpcUrl,
+    "horizonUrl": "https://horizon-testnet.stellar.org",
+    "contractIds": {
+      "invoice": "",
+      "token": "",
     },
-    deployer: {
-      keypairPath: "~/.stellar/testnet.key",
+    "deployer": {
+      "keypairPath": "~/.stellar/testnet.key",
     },
   };
 

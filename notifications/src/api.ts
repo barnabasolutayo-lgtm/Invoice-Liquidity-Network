@@ -6,6 +6,10 @@ import {
   deleteSubscriptionById,
   getSubscriptionsByAddress,
   getSubscriptionById,
+  getWebhookDeliveryLogs,
+  getDeliveryAnalytics,
+  getChannelComparison,
+  getTrendAnalytics,
 } from "./db";
 import {
   ALLOWED_CHANNELS,
@@ -200,6 +204,20 @@ export function createApp() {
 
       return res.json({ success: false, statusCode });
     }
+  });
+
+  app.get("/analytics", (_req: Request, res: Response) => {
+    return res.json(getDeliveryAnalytics());
+  });
+
+  app.get("/analytics/channel-comparison", (_req: Request, res: Response) => {
+    return res.json({ channels: getChannelComparison() });
+  });
+
+  app.get("/analytics/trends", (req: Request, res: Response) => {
+    const rawDays = typeof req.query.days === "string" ? parseInt(req.query.days, 10) : 30;
+    const days = Number.isFinite(rawDays) && rawDays > 0 ? Math.min(rawDays, 365) : 30;
+    return res.json({ trends: getTrendAnalytics(days) });
   });
 
   return app;

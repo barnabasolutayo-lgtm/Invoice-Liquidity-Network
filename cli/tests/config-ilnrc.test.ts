@@ -340,3 +340,44 @@ describe("iln config init (CLI command)", () => {
     expect(stderr.toString()).toContain("already exists");
   });
 });
+
+// ─── Additional validation & migration tests ──────────────────────────────────
+describe("Config validation & version migration", () => {
+  it("automatically migrates version 1 format to version 2 on disk", () => {
+    const cwd = tempDir();
+    const legacyConfig = {
+      network: "testnet",
+      contractId: "C_LEGACY",
+      keypairPath: "/tmp/legacy.secret",
+      tokenId: "T_LEGACY",
+    };
+    writeJson(cwd, ".ilnrc.json", legacyConfig);
+
+    const config = loadConfig({ cwd, env: {} });
+    expect(config.contractId).toBe("C_LEGACY");
+    expect(config.keypairPath).toBe("/tmp/legacy.secret");
+    expect(config.tokenId).toBe("T_LEGACY");
+
+    // Verify it was updated on disk
+    const updatedRaw = JSON.parse(readFileSync(path.join(cwd, ".ilnrc.json"), "utf8"));
+    expect(updatedRaw.version).toBe(2);
+    expect(updatedRaw.contractIds.invoice).toBe("C_LEGACY");
+    expect(updatedRaw.contractIds.token).toBe("T_LEGACY");
+    expect(updatedRaw.deployer.keypairPath).toBe("/tmp/legacy.secret");
+    expect(updatedRaw.contractId).toBeUndefined();
+    expect(updatedRaw.keypairPath).toBeUndefined();
+    expect(updatedRaw.tokenId).toBeUndefined();
+    expect(updatedRaw["$schema"]).toBe("./config.schema.json");
+  });
+
+  it("produces formatted, helpful error messages on validation failure", () => {
+    const cwd = tempDir();
+    writeJson(cwd, ".ilnrc.json", {
+      network: "invalid-network-name",
+      rpcUrl: "not-a-url",
+    });
+
+    expect(() => loadConfig({ cwd, env: {} })).toThrow(/\[Field: network\].*\[Field: rpcUrl\]/);
+  });
+});
+
