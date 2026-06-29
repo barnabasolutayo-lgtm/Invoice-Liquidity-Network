@@ -32,7 +32,8 @@
     "security:licenses": "node scripts/dependency-audit.js licenses",
     "security:scan": "node scripts/dependency-audit.js scan",
     "security:report": "node scripts/dependency-audit.js report",
-    "syncpack:check": "syncpack list-mismatches"
+    "syncpack:check": "syncpack list-mismatches",
+    "validate:packages": "node scripts/validate-packages.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "2.31.0",

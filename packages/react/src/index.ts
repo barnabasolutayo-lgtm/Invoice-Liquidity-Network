@@ -44,4 +44,4 @@ export type {
 } from './hooks';
 
 // Components
-export * from './components/NotificationCenter';
+export * from './components';
