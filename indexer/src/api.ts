@@ -13,7 +13,6 @@ import {
 import { cacheGet, cacheSet } from "./cache";
 import { createGraphQLHandler } from "./graphql";
 import { createApiRateLimiter } from "./rateLimit";
-<<<<<<< HEAD
 import {
   getArchiveStats,
   queryArchiveInvoices,
