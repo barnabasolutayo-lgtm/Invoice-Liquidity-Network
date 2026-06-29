@@ -1,3 +1,7 @@
+/**
+ * Re-exported shared types from the @iln/shared package.
+ * These represent core domain objects used throughout the SDK.
+ */
 export type {
   ContractEvent,
   ContractStats,
@@ -25,6 +29,15 @@ export type {
   LPStatsUpdatedEvent,
 } from "@iln/shared";
 
+/**
+ * Parameters for submitting a new invoice to the ILN contract.
+ *
+ * @property freelancer - Stellar address of the freelancer submitting the invoice.
+ * @property payer - Stellar address of the payer responsible for the invoice.
+ * @property amount - Invoice amount in the smallest token unit (e.g. stroops for XLM).
+ * @property dueDate - Unix timestamp in seconds when the invoice payment is due.
+ * @property discountRate - Discount rate in basis points (e.g. 500 = 5%).
+ */
 export interface SubmitInvoiceParams {
   freelancer: string;
   payer: string;
@@ -33,20 +46,49 @@ export interface SubmitInvoiceParams {
   discountRate: number;
 }
 
+/**
+ * Parameters for funding an existing invoice.
+ *
+ * @property funder - Stellar address of the liquidity provider funding the invoice.
+ * @property invoiceId - The on-chain ID of the invoice to fund.
+ */
 export interface FundInvoiceParams {
   funder: string;
   invoiceId: bigint;
 }
 
+/**
+ * Parameters for claiming a default on an unpaid invoice.
+ *
+ * @property funder - Stellar address of the liquidity provider claiming the default.
+ * @property invoiceId - The on-chain ID of the invoice to claim default on.
+ */
 export interface ClaimDefaultParams {
   funder: string;
   invoiceId: bigint;
 }
 
+/**
+ * Parameters for marking an invoice as paid.
+ *
+ * @property invoiceId - The on-chain ID of the invoice to mark as paid.
+ */
 export interface MarkPaidParams {
   invoiceId: bigint;
 }
 
+/**
+ * Protocol-level configuration retrieved from the ILN smart contract.
+ *
+ * @property minInvoiceAmount - Minimum invoice amount allowed by the protocol.
+ * @property maxDiscountRate - Maximum discount rate in basis points.
+ * @property protocolFeeBps - Protocol fee in basis points.
+ * @property minPayerReputation - Minimum reputation score required for payers.
+ * @property decayRateBps - Reputation decay rate in basis points.
+ * @property maxInvoiceDuration - Optional maximum invoice duration in seconds.
+ * @property minInvoiceDuration - Optional minimum invoice duration in seconds.
+ * @property gracePeriodSeconds - Optional grace period in seconds after due date.
+ */
 export interface ProtocolConfig {
   minInvoiceAmount: bigint;
   maxDiscountRate: number;
@@ -58,19 +100,48 @@ export interface ProtocolConfig {
   gracePeriodSeconds?: number;
 }
 
+/**
+ * Options passed to a transaction signer when signing.
+ *
+ * @property address - Optional Stellar address to sign as (for multi-sig wallets).
+ * @property networkPassphrase - The Stellar network passphrase for the target network.
+ */
 export interface SignTransactionOptions {
   address?: string;
   networkPassphrase: string;
 }
 
+/**
+ * Interface for transaction signing implementations.
+ * Implement this to integrate with hardware wallets, browser extensions, or custom signers.
+ *
+ * @example
+ * ```ts
+ * const signer: TransactionSigner = {
+ *   async getPublicKey() { return "GABC..."; },
+ *   async signTransaction(xdr, opts) { return signedXdr; },
+ * };
+ * ```
+ */
 export interface TransactionSigner {
+  /** Returns the public key of the signing account. */
   getPublicKey(): Promise<string>;
+  /**
+   * Sign a serialized transaction.
+   * @param transactionXdr - Base64-encoded XDR transaction envelope.
+   * @param options - Signing options including network passphrase.
+   * @returns The signed transaction as a base64-encoded XDR string.
+   */
   signTransaction(
     transactionXdr: string,
     options: SignTransactionOptions,
   ): Promise<string>;
 }
 
+/**
+ * Abstraction over a Stellar RPC server for dependency injection and testing.
+ * Compatible with @stellar/stellar-sdk's `rpc.Server`.
+ */
 export interface RpcServerLike {
   getAccount(address: string): Promise<unknown>;
   simulateTransaction(transaction: unknown): Promise<unknown>;
@@ -79,6 +150,27 @@ export interface RpcServerLike {
   pollTransaction(hash: string, options?: { attempts?: number }): Promise<unknown>;
 }
 
+/**
+ * Configuration for initializing the ILN SDK client.
+ *
+ * @property contractId - The Soroban contract ID for the ILN contract.
+ * @property rpcUrl - URL of the Stellar Soroban RPC server.
+ * @property networkPassphrase - The Stellar network passphrase (e.g. `Networks.TESTNET`).
+ * @property signer - Optional transaction signer for state-changing operations.
+ * @property server - Optional custom RPC server implementation.
+ * @property timeoutMs - Fallback timeout for all network requests in ms (default: 30000).
+ * @property timeouts - Per-operation timeout overrides in milliseconds.
+ *
+ * @example
+ * ```ts
+ * import { ILNSdk, ILN_TESTNET } from "@invoice-liquidity/sdk";
+ *
+ * const sdk = new ILNSdk({
+ *   ...ILN_TESTNET,
+ *   signer: createKeypairSigner(secretKey),
+ * });
+ * ```
+ */
 export interface ILNSdkConfig {
   contractId: string;
   rpcUrl: string;
@@ -94,12 +186,24 @@ export interface ILNSdkConfig {
   cache?: CacheConfig;
 }
 
+/**
+ * Pre-configured network settings for connecting to a Stellar network.
+ * Use the built-in `ILN_TESTNET` constant for testnet connections.
+ */
 export interface NetworkConfig {
   contractId: string;
   rpcUrl: string;
   networkPassphrase: string;
 }
 
+/**
+ * Result of an SDK-to-contract compatibility check.
+ *
+ * @property compatible - Whether the SDK and contract versions are compatible.
+ * @property contractVersion - The deployed contract's semver version string.
+ * @property sdkVersion - The SDK's semver version string.
+ * @property issues - List of compatibility issues found (empty if compatible).
+ */
 export interface CompatibilityResult {
   compatible: boolean;
   contractVersion: string;
@@ -107,6 +211,14 @@ export interface CompatibilityResult {
   issues: string[];
 }
 
+/**
+ * Parsed semantic version with numeric components.
+ *
+ * @property major - Major version number.
+ * @property minor - Minor version number.
+ * @property patch - Patch version number.
+ * @property raw - Original unparsed version string.
+ */
 export interface VersionInfo {
   major: number;
   minor: number;
@@ -114,6 +226,14 @@ export interface VersionInfo {
   raw: string;
 }
 
+/**
+ * A deprecation warning for a deprecated SDK method.
+ *
+ * @property method - The deprecated method name.
+ * @property message - Human-readable deprecation message.
+ * @property alternative - The recommended replacement method (if any).
+ * @property removedIn - The SDK version where the method will be removed.
+ */
 export interface DeprecationWarning {
   method: string;
   message: string;
@@ -121,18 +241,40 @@ export interface DeprecationWarning {
   removedIn?: string;
 }
 
+/**
+ * A migration guide describing changes between two SDK versions.
+ *
+ * @property fromVersion - The source version to migrate from.
+ * @property toVersion - The target version to migrate to.
+ * @property changes - List of changes between the versions.
+ */
 export interface MigrationGuide {
   fromVersion: string;
   toVersion: string;
   changes: MigrationChange[];
 }
 
+/**
+ * A single change entry in a migration guide.
+ *
+ * @property type - The type of change: "breaking", "deprecated", "added", or "removed".
+ * @property description - Human-readable description of the change.
+ * @property migration - Migration instructions (if applicable).
+ */
 export interface MigrationChange {
   type: "breaking" | "deprecated" | "added" | "removed";
   description: string;
   migration?: string;
 }
 
+/**
+ * Result of executing a batch of operations.
+ *
+ * @property success - Whether the entire batch succeeded.
+ * @property transactionHash - The on-chain transaction hash (if submitted).
+ * @property results - Per-operation results with individual success/failure.
+ * @property totalFee - Total network fee paid for the batch in stroops.
+ */
 export interface BatchResult {
   success: boolean;
   transactionHash?: string;
@@ -140,6 +282,14 @@ export interface BatchResult {
   totalFee: bigint;
 }
 
+/**
+ * Result of a single operation within a batch.
+ *
+ * @property index - The index of the operation in the batch.
+ * @property success - Whether this specific operation succeeded.
+ * @property error - Error message if the operation failed.
+ * @property invoiceId - The invoice ID if the operation created one.
+ */
 export interface BatchOperationResult {
   index: number;
   success: boolean;
@@ -147,6 +297,11 @@ export interface BatchOperationResult {
   invoiceId?: bigint;
 }
 
+/**
+ * Parameters for batch-submitting multiple invoices in a single transaction.
+ *
+ * @property invoices - Array of invoice parameters to submit.
+ */
 export interface BatchSubmitParams {
   invoices: Array<{
     freelancer: string;
@@ -157,11 +312,22 @@ export interface BatchSubmitParams {
   }>;
 }
 
+/**
+ * Parameters for batch-funding multiple invoices in a single transaction.
+ *
+ * @property funder - Stellar address of the funding account.
+ * @property invoiceIds - Array of invoice IDs to fund.
+ */
 export interface BatchFundParams {
   funder: string;
   invoiceIds: bigint[];
 }
 
+/**
+ * Parameters for batch-marking multiple invoices as paid in a single transaction.
+ *
+ * @property invoiceIds - Array of invoice IDs to mark as paid.
+ */
 export interface BatchPayParams {
   invoiceIds: bigint[];
 }

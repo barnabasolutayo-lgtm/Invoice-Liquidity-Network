@@ -21,7 +21,7 @@ import {
   archiveOldData,
 } from "./archive";
 import { getDashboardMetrics, recordRequest, recordError } from "./dashboard";
-
+import { BackupManager } from "./backup";
 
 /**
  * Build and return the Express application.
@@ -41,6 +41,7 @@ export function createApp(): express.Application {
   app.use(yoga.graphqlEndpoint, yoga);
 
   const startTime = Date.now();
+  const backupManager = new BackupManager();
 
   // ── Version negotiation ────────────────────────────────────────────────────
   // If the client sends Accept: application/vnd.iln.v1+json or API-Version: 1
@@ -268,6 +269,61 @@ export function createApp(): express.Application {
       res.json({ success: true, ...result });
     } catch (error: any) {
       res.status(500).json({ error: error.message || "Archival run failed" });
+    }
+  });
+
+  // ── Backup endpoints ──────────────────────────────────────────────────────
+
+  // POST /backup — trigger a manual backup
+  app.post("/backup", async (_req: Request, res: Response) => {
+    try {
+      const manifest = await backupManager.runBackup();
+      if (manifest) {
+        res.json({ success: true, backup: manifest });
+      } else {
+        res.status(500).json({ success: false, error: "Backup failed" });
+      }
+    } catch (err) {
+      res.status(500).json({
+        success: false,
+        error: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  });
+
+  // GET /backup — list all available backups
+  app.get("/backup", (_req: Request, res: Response) => {
+    const backups = backupManager.listBackups();
+    res.json({ backups, total: backups.length });
+  });
+
+  // GET /backup/latest — get the latest backup manifest
+  app.get("/backup/latest", (_req: Request, res: Response) => {
+    const latest = backupManager.getLatestBackup();
+    if (latest) {
+      res.json(latest);
+    } else {
+      res.status(404).json({ error: "No backups found" });
+    }
+  });
+
+  // POST /backup/restore — restore from a backup
+  app.post("/backup/restore", async (req: Request, res: Response) => {
+    const { backupPath, verify } = req.body;
+
+    if (!backupPath || typeof backupPath !== "string") {
+      res.status(400).json({ error: "backupPath is required" });
+      return;
+    }
+
+    try {
+      await backupManager.restore({ backupPath, verify: verify !== false });
+      res.json({ success: true, message: "Restore complete" });
+    } catch (err) {
+      res.status(500).json({
+        success: false,
+        error: err instanceof Error ? err.message : "Restore failed",
+      });
     }
   });
 

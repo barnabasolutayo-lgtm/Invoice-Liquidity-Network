@@ -1,3 +1,8 @@
+/**
+ * Token decimal configuration for amount parsing and formatting.
+ *
+ * @property decimals - Number of decimal places the token supports (0-18).
+ */
 export interface AmountToken {
   decimals: number;
 }
@@ -21,6 +26,23 @@ const BASIS_POINTS_SCALE = 10_000n;
 
 // ── Core parse / format ───────────────────────────────────────────────────────
 
+/**
+ * Parse a human-readable amount string into the smallest token unit (bigint).
+ *
+ * @param input - The amount string (e.g. "100", "12.5", "0.001").
+ * @param token - Token configuration specifying the number of decimal places.
+ * @returns The amount in the smallest token unit as a bigint.
+ * @throws {Error} If the input is not a valid non-negative decimal value.
+ * @throws {Error} If the input has more decimal places than the token supports.
+ *
+ * @example
+ * ```ts
+ * // USDC has 6 decimals
+ * parseAmount("100", { decimals: 6 });   // => 100000000n
+ * parseAmount("12.5", { decimals: 6 }); // => 12500000n
+ * parseAmount("0.001", { decimals: 6 }); // => 1000n
+ * ```
+ */
 export function parseAmount(input: string, token: AmountToken): bigint {
   const decimals = normalizeDecimals(token);
   const trimmed = input.trim();
@@ -40,6 +62,21 @@ export function parseAmount(input: string, token: AmountToken): bigint {
   return whole * 10n ** BigInt(decimals) + fractional;
 }
 
+/**
+ * Format a bigint amount from the smallest token unit into a human-readable string.
+ *
+ * @param amount - The amount in the smallest token unit.
+ * @param token - Token configuration specifying the number of decimal places.
+ * @returns A decimal string representation of the amount.
+ * @throws {Error} If the amount is negative.
+ *
+ * @example
+ * ```ts
+ * // USDC has 6 decimals
+ * formatAmount(100000000n, { decimals: 6 }); // => "100"
+ * formatAmount(12500000n, { decimals: 6 });  // => "12.5"
+ * ```
+ */
 export function formatAmount(amount: bigint, token: AmountToken): string {
   if (amount < 0n) {
     throw new Error("Cannot format a negative amount.");
