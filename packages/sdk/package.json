@@ -35,6 +35,10 @@
   "module": "./dist/index.js",
   "browser": "./dist/browser/index.js",
   "types": "./dist/index.d.ts",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "tsup src/index.ts src/tokens.ts src/events.ts src/errors.ts src/xdr.ts --format cjs,esm --dts --clean",
     "build:browser": "vite build --config vite.browser.config.ts",

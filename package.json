@@ -26,7 +26,8 @@
     "dead-code:check": "knip",
     "gitleaks:scan": "pnpm exec gitleaks detect --no-git -s . --config gitleaks.toml --baseline-path .secrets.baseline",
     "gitleaks:baseline": "pnpm exec gitleaks detect --no-git -s . --config gitleaks.toml --report-format json --report-path .secrets.baseline",
-    "syncpack:check": "syncpack list-mismatches"
+    "syncpack:check": "syncpack list-mismatches",
+    "validate:packages": "node scripts/validate-packages.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "2.31.0",
