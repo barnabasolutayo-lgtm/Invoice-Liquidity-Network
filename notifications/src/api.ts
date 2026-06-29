@@ -1,5 +1,6 @@
-import express, { Request, Response } from "express";
+import express, { Request, Response, NextFunction } from "express";
 import { randomBytes } from "crypto";
+import { RateLimiter } from "./rate-limiter";
 import {
   createSubscription,
   deleteSubscriptionByAddressAndDestination,
@@ -31,6 +32,34 @@ interface SubscribeRequest {
   webhook_secret?: string;
 }
 
+const rateLimiter = new RateLimiter({
+  perUserLimit: parseInt(process.env.RATE_LIMIT_PER_USER ?? "60", 10),
+  perChannelLimit: parseInt(process.env.RATE_LIMIT_PER_CHANNEL ?? "200", 10),
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS ?? "60000", 10),
+});
+
+function applyRateLimit(req: Request, res: Response, next: NextFunction): void {
+  const userId = (req.body as any)?.stellar_address as string | undefined
+    ?? req.params.address
+    ?? req.ip
+    ?? "anonymous";
+  const channel = (req.body as any)?.channel as string | undefined ?? "api";
+  const result = rateLimiter.check(userId, channel);
+
+  res.setHeader("X-RateLimit-Limit", String(result.limit));
+  res.setHeader("X-RateLimit-Remaining", String(result.remaining));
+  res.setHeader("X-RateLimit-Reset", String(result.resetAt));
+
+  if (!result.allowed) {
+    res.status(429).json({
+      error: "Too many requests — rate limit exceeded. Please try again later.",
+      retryAfter: result.resetAt,
+    });
+    return;
+  }
+  next();
+}
+
 export function createApp() {
   const app = express();
   app.use(express.json());
@@ -39,7 +68,7 @@ export function createApp() {
     res.json({ status: "ok" });
   });
 
-  app.post("/subscribe", (req: Request, res: Response) => {
+  app.post("/subscribe", applyRateLimit, (req: Request, res: Response) => {
     const body = req.body as SubscribeRequest;
 
     if (!body?.stellar_address || typeof body.stellar_address !== "string") {
@@ -155,7 +184,7 @@ export function createApp() {
     return res.json({ logs });
   });
 
-  app.post("/test-webhook", async (req: Request, res: Response) => {
+  app.post("/test-webhook", applyRateLimit, async (req: Request, res: Response) => {
     const { id } = req.body as { id: number };
 
     if (typeof id !== "number") {

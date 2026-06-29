@@ -19,12 +19,12 @@ import {
   formatInvoiceList,
   formatInvoiceListJson,
   formatProtocolConfig,
+  formatProtocolConfigJson,
   helpExample,
   helpSection,
 } from "./format";
 import { generateManPage } from "./man";
 import { registerInspectCommand } from "./inspect";
-<<<<<<< HEAD
 import { registerCompletionCommand } from "./completion";
 import { registerEnvCommands } from "./env";
 import {
@@ -249,7 +249,12 @@ export async function runCli(
         tokenId,
       });
 
-      ui.success(`Submitted invoice ${invoiceId.toString()} in transaction ${txHash}.`);
+      const globalOpts = program.opts() as { json?: boolean };
+      if (globalOpts.json) {
+        stdout.write(JSON.stringify({ success: true, invoiceId: invoiceId.toString(), txHash }, null, 2) + "\n");
+      } else {
+        ui.success(`Submitted invoice ${invoiceId.toString()} in transaction ${txHash}.`);
+      }
     });
 
   program
@@ -272,9 +277,9 @@ export async function runCli(
       ].join("\n"),
     )
     .action(async (options: { amount?: string; id?: string; yes?: boolean }) => {
-      let invoiceId = options.id;
+      let invoiceId = await resolveIdFromStdin(options.id);
 
-      if (!options.yes && process.stdin.isTTY) {
+      if (!invoiceId && !options.yes && process.stdin.isTTY) {
         const resolved = await promptMissingArguments(
           [
             {
@@ -290,14 +295,20 @@ export async function runCli(
       }
 
       if (!invoiceId) {
-        throw new Error("Missing required argument: --id");
+        throw new Error("Missing required argument: --id. Provide it via option or pipe to stdin.");
       }
       const client = createClient(load());
       const result = await client.fundInvoice(
         parseInvoiceId(invoiceId),
         options.amount ? parseDisplayAmount(options.amount) : undefined,
       );
-      ui.success(`Funded invoice ${invoiceId} in transaction ${result.hash}.`);
+
+      const globalOpts = program.opts() as { json?: boolean };
+      if (globalOpts.json) {
+        stdout.write(JSON.stringify({ success: true, invoiceId: invoiceId, txHash: result.hash }, null, 2) + "\n");
+      } else {
+        ui.success(`Funded invoice ${invoiceId} in transaction ${result.hash}.`);
+      }
     });
 
   program
@@ -322,9 +333,9 @@ export async function runCli(
       ].join("\n"),
     )
     .action(async (options: { id?: string; yes?: boolean }) => {
-      let invoiceId = options.id;
+      let invoiceId = await resolveIdFromStdin(options.id);
 
-      if (!options.yes && process.stdin.isTTY) {
+      if (!invoiceId && !options.yes && process.stdin.isTTY) {
         const resolved = await promptMissingArguments(
           [
             {
@@ -340,11 +351,17 @@ export async function runCli(
       }
 
       if (!invoiceId) {
-        throw new Error("Missing required argument: --id");
+        throw new Error("Missing required argument: --id. Provide it via option or pipe to stdin.");
       }
       const client = createClient(load());
       const result = await client.markPaid(parseInvoiceId(invoiceId));
-      ui.success(`Marked invoice ${invoiceId} as paid in transaction ${result.hash}.`);
+
+      const globalOpts = program.opts() as { json?: boolean };
+      if (globalOpts.json) {
+        stdout.write(JSON.stringify({ success: true, invoiceId: invoiceId, txHash: result.hash }, null, 2) + "\n");
+      } else {
+        ui.success(`Marked invoice ${invoiceId} as paid in transaction ${result.hash}.`);
+      }
     });
 
   program
@@ -366,9 +383,9 @@ export async function runCli(
       ].join("\n"),
     )
     .action(async (options: { id?: string; yes?: boolean }) => {
-      let invoiceId = options.id;
+      let invoiceId = await resolveIdFromStdin(options.id);
 
-      if (!options.yes && process.stdin.isTTY) {
+      if (!invoiceId && !options.yes && process.stdin.isTTY) {
         const resolved = await promptMissingArguments(
           [
             {
@@ -384,7 +401,7 @@ export async function runCli(
       }
 
       if (!invoiceId) {
-        throw new Error("Missing required argument: --id");
+        throw new Error("Missing required argument: --id. Provide it via option or pipe to stdin.");
       }
 
       const client = createClient(load());
@@ -569,7 +586,9 @@ export async function runCli(
       const config = load();
       const client = createClient(config);
 
-      ui.info("Checking contract compatibility...");
+      const globalOpts = program.opts() as { json?: boolean };
+      
+      let checkError: Error | null = null;
       const result = await checkCompatibility(async (method: string) => {
         if (method === "get_version") {
           return client.getVersion();
@@ -577,6 +596,15 @@ export async function runCli(
         throw new Error(`Unsupported compatibility check invoke method: ${method}`);
       });
 
+      if (globalOpts.json) {
+        stdout.write(JSON.stringify(result, null, 2) + "\n");
+        if (!result.compatible) {
+          throw new Error("Compatibility check failed.");
+        }
+        return;
+      }
+
+      ui.info("Checking contract compatibility...");
       ui.info(`SDK Version:      ${result.sdkVersion}`);
       ui.info(`Contract Version: ${result.contractVersion}`);
 
@@ -609,7 +637,8 @@ export async function runCli(
     .action(async () => {
       const client = createClient(load());
       const config = await client.getProtocolConfig();
-      ui.info(formatProtocolConfig(config));
+      const globalOpts = program.opts() as { json?: boolean };
+      ui.info(globalOpts.json ? formatProtocolConfigJson(config) : formatProtocolConfig(config));
     });
 
   // Config file management
@@ -1050,15 +1079,69 @@ export async function runCli(
   try {
     await program.parseAsync(argv, { from: "user" });
     return 0;
-  } catch (error) {
-    ui.error(formatUnknownError(error));
+  } catch (error: any) {
+    const isJson = program.opts().json;
+    if (isJson) {
+      stdout.write(JSON.stringify({ success: false, error: formatUnknownError(error) }, null, 2) + "\n");
+    } else {
+      ui.error(formatUnknownError(error));
+    }
     return 1;
   }
 }
 
 export async function main(): Promise<void> {
   const exitCode = await runCli(process.argv.slice(2));
-  process.exitCode = exitCode;
+  process.exit(exitCode);
+}
+
+async function readStdin(): Promise<string> {
+  if (process.stdin.isTTY) {
+    return "";
+  }
+  return new Promise((resolve) => {
+    let data = "";
+    process.stdin.setEncoding("utf-8");
+    const onData = (chunk: string) => {
+      data += chunk;
+    };
+    const onEnd = () => {
+      cleanup();
+      resolve(data.trim());
+    };
+    const cleanup = () => {
+      process.stdin.off("data", onData);
+      process.stdin.off("end", onEnd);
+      clearTimeout(timeoutId);
+    };
+    const timeoutId = setTimeout(() => {
+      cleanup();
+      resolve(data.trim());
+    }, 1000);
+
+    process.stdin.on("data", onData);
+    process.stdin.on("end", onEnd);
+  });
+}
+
+async function resolveIdFromStdin(optionId?: string): Promise<string | undefined> {
+  if (optionId && optionId !== "-") {
+    return optionId;
+  }
+  const stdinVal = await readStdin();
+  if (!stdinVal) {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(stdinVal);
+    const idVal = parsed.invoiceId ?? parsed.id;
+    if (idVal !== undefined) {
+      return String(idVal);
+    }
+  } catch {
+    // Treat as raw text ID
+  }
+  return stdinVal;
 }
 
 function parseInvoiceId(value: string): bigint {
