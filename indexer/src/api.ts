@@ -1,4 +1,5 @@
 import express, { Request, Response, Router, RequestHandler } from "express";
+import swaggerUi from "swagger-ui-express";
 import {
   getDb,
   getFreelancerStats,
@@ -11,6 +12,7 @@ import {
   getCursorUpdatedAt,
 } from "./db";
 import { cacheGet, cacheSet } from "./cache";
+import { openApiSpec } from "./openapi";
 import { createGraphQLHandler } from "./graphql";
 import { createApiRateLimiter } from "./rateLimit";
 import {
@@ -39,6 +41,12 @@ export function createApp(): express.Application {
   // ── GraphQL (queries, mutations, subscriptions via SSE + GraphiQL) ──────────
   const yoga = createGraphQLHandler();
   app.use(yoga.graphqlEndpoint, yoga);
+
+  // ── Swagger / OpenAPI docs ─────────────────────────────────────────────────
+  app.use("/docs", swaggerUi.serve, swaggerUi.setup(openApiSpec, {
+    customSiteTitle: "ILN Indexer API Docs",
+    swaggerOptions: { defaultModelsExpandDepth: -1 },
+  }));
 
   const startTime = Date.now();
   const backupManager = new BackupManager();
